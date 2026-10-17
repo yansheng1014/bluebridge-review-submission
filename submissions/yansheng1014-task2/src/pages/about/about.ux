@@ -30,6 +30,8 @@
         </div>
         <text class="about-repo" style="{{t.muted}}">GitHub · EstimateFaster/bluebridge-review</text>
       </scroll>
+      <image class="fade-top" src="{{t.fadeTop}}"></image>
+      <image class="fade-bottom" src="{{t.fadeBottom}}"></image>
     </div>
   </div>
 </template>

@@ -335,3 +335,20 @@
   font-weight: bold;
   lines: 1;
 }
+
+/* 滚动内容与顶栏/屏幕边缘之间的渐隐过渡（图片按主题背景色生成，避免黑边硬切） */
+.fade-top {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 336px;
+  height: 36px;
+}
+
+.fade-bottom {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 336px;
+  height: 24px;
+}

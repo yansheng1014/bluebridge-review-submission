@@ -90,16 +90,14 @@
           <div class="progress-track contrast-track" style="{{t.line}}">
             <div class="progress-fill" style="{{accentBarStyle}}"></div>
           </div>
-          <div class="contrast-status">
-            <text class="contrast-status-text" style="{{contrastStatusStyle}}">{{contrastStatus}}</text>
-          </div>
         </div>
 
         <div class="btn reset-btn {{resetPressClass}}" style="{{t.tile}}" onclick="restoreDefaults">
           <text class="btn-text" style="{{t.accent}}">恢复默认主题</text>
         </div>
-        <text class="theme-foot" style="{{t.muted}}">恢复为午夜黑金 · 主题自带强调色</text>
       </scroll>
+      <image class="fade-top" src="{{t.fadeTop}}"></image>
+      <image class="fade-bottom" src="{{t.fadeBottom}}"></image>
     </div>
   </div>
 </template>
@@ -593,7 +591,7 @@ export default {
 
 /* 可读性：两条对比度 + 等级 + 提示 */
 .contrast-card {
-  height: 156px;
+  height: 128px;
   margin-bottom: 8px;
   padding: 12px 14px;
 }

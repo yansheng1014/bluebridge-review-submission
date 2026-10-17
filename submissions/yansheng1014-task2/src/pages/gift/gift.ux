@@ -5,7 +5,6 @@
         <image class="back-icon" src="{{t.iconBack}}"></image>
       </div>
       <text class="top-title" style="{{t.text}}">礼包码</text>
-      <text class="top-meta" style="{{t.sub}}">{{metaText}}</text>
     </div>
     <div class="content-layer flow-content-layer">
       <div class="screen-body" style="{{t.page}}">
@@ -58,10 +57,9 @@
               <text class="btn-text" style="{{t.onAccent}}">完成</text>
             </div>
           </div>
-          <text class="success-note" style="{{t.muted}}">{{successNote}}</text>
         </div>
 
-        <div class="recent-row">
+        <div class="recent-row" show="{{hasRecent}}">
           <image class="recent-icon" src="{{t.iconClock}}"></image>
           <text class="recent-text" style="{{recentStyle}}">{{recentText}}</text>
         </div>
@@ -223,14 +221,14 @@ export default {
     hintText: "",
     hintStyle: DEFAULT_STYLES.danger,
     shakeCls: "",
-    recentText: "暂无兑换记录",
+    hasRecent: false,
+    recentText: "",
     recentStyle: DEFAULT_STYLES.muted,
     cardStyle: mergeStyle(DEFAULT_STYLES.card, DEFAULT_STYLES.border),
     doneBtnStyle: mergeStyle(DEFAULT_STYLES.accentBg, DEFAULT_STYLES.accentBorder),
     rewardName: "",
     rewardLines: [],
     redeemTimeText: "",
-    successNote: "已存入兑换记录",
     busy: false
   },
   onInit() {
@@ -518,9 +516,10 @@ export default {
     if (this.lastCode) {
       this.recentText = "最近兑换 · " + this.lastCode
       this.recentStyle = this.t.accent
+      this.hasRecent = true
     } else {
-      this.recentText = "暂无兑换记录"
-      this.recentStyle = this.t.muted
+      this.recentText = ""
+      this.hasRecent = false
     }
   }
 }
@@ -670,7 +669,7 @@ export default {
 
 .gift-success-wrap {
   width: 320px;
-  height: 344px;
+  height: 324px;
   flex-direction: column;
   align-items: center;
   flex-shrink: 0;

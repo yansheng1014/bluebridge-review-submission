@@ -34,6 +34,8 @@
         </div>
         <text class="portfolio-note" style="{{t.muted}}">以上为固定演示持仓，仅用于界面展示。</text>
       </scroll>
+      <image class="fade-top" src="{{t.fadeTop}}"></image>
+      <image class="fade-bottom" src="{{t.fadeBottom}}"></image>
     </div>
   </div>
 </template>

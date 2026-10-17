@@ -42,6 +42,8 @@
           <text class="trade-note-text" style="{{t.sub}}">行情与持仓均为固定展示数据。</text>
         </div>
       </scroll>
+      <image class="fade-top" src="{{t.fadeTop}}"></image>
+      <image class="fade-bottom" src="{{t.fadeBottom}}"></image>
     </div>
   </div>
 </template>

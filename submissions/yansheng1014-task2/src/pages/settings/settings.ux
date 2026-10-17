@@ -48,6 +48,8 @@
         </div>
         <text class="settings-note" style="{{t.muted}}">蓝桥工作室 · 招新评测基底</text>
       </scroll>
+      <image class="fade-top" src="{{t.fadeTop}}"></image>
+      <image class="fade-bottom" src="{{t.fadeBottom}}"></image>
     </div>
   </div>
 </template>

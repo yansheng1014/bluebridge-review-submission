@@ -209,6 +209,8 @@ export function buildStyles(state) {
     warning: { color: tokens.warning },
     successBg: { backgroundColor: tokens.success },
     dangerBg: { backgroundColor: tokens.danger },
+    fadeTop: "/common/fade-" + theme.id + "-top.png",
+    fadeBottom: "/common/fade-" + theme.id + "-bottom.png",
     iconDir: iconDir,
     iconBack: iconDir + "arrow-left.png",
     iconChevron: iconDir + "chevron-right.png",
