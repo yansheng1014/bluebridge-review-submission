@@ -1,0 +1,797 @@
+<template>
+  <div class="page" style="{{t.page}}">
+    <div class="topbar" style="{{t.topbar}}">
+      <div class="back-hit" onclick="back">
+        <image class="back-icon" src="{{t.iconBack}}"></image>
+      </div>
+      <text class="top-title" style="{{t.text}}">礼包码</text>
+      <text class="top-meta" style="{{t.sub}}">{{metaText}}</text>
+    </div>
+    <div class="content-layer flow-content-layer">
+      <div class="screen-body" style="{{t.page}}">
+        <div class="gift-input-wrap" if="{{inputVisible}}">
+          <div class="cell-row {{shakeCls}}">
+            <div class="cell {{$item.gapCls}}" for="{{cells}}" tid="id" style="{{$item.style}}">
+              <text class="cell-text" style="{{$item.textStyle}}">{{$item.label}}</text>
+            </div>
+          </div>
+          <text class="hint-text" style="{{hintStyle}}">{{hintText}}</text>
+          <div class="keypad">
+            <div class="key-row">
+              <div class="key {{$item.gapCls}} {{$item.cls}}" for="{{row1}}" tid="id" style="{{$item.style}}" onclick="onKey($item)" ontouchstart="keyTouchStart($item)" ontouchend="keyTouchEnd" ontouchcancel="keyTouchEnd">
+                <text class="key-text" style="{{$item.textStyle}}">{{$item.label}}</text>
+              </div>
+            </div>
+            <div class="key-row key-row-gap">
+              <div class="key {{$item.gapCls}} {{$item.cls}}" for="{{row2}}" tid="id" style="{{$item.style}}" onclick="onKey($item)" ontouchstart="keyTouchStart($item)" ontouchend="keyTouchEnd" ontouchcancel="keyTouchEnd">
+                <text class="key-text" style="{{$item.textStyle}}">{{$item.label}}</text>
+              </div>
+            </div>
+            <div class="key-row key-row-gap">
+              <div class="key {{$item.gapCls}} {{$item.cls}}" for="{{row3}}" tid="id" style="{{$item.style}}" onclick="onKey($item)" ontouchstart="keyTouchStart($item)" ontouchend="keyTouchEnd" ontouchcancel="keyTouchEnd">
+                <text class="key-text" style="{{$item.textStyle}}">{{$item.label}}</text>
+              </div>
+            </div>
+            <div class="key-row key-row-gap">
+              <div class="key {{$item.gapCls}} {{$item.cls}}" for="{{row4}}" tid="id" style="{{$item.style}}" onclick="onKey($item)" ontouchstart="keyTouchStart($item)" ontouchend="keyTouchEnd" ontouchcancel="keyTouchEnd">
+                <text class="key-text" style="{{$item.textStyle}}">{{$item.label}}</text>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="gift-success-wrap" if="{{successVisible}}">
+          <div class="card reward-card" style="{{cardStyle}}">
+            <div class="reward-head">
+              <image class="reward-icon" src="{{t.iconGift}}"></image>
+              <text class="reward-title" style="{{t.success}}">兑换成功</text>
+            </div>
+            <text class="reward-pack" style="{{t.text}}">{{rewardName}}</text>
+            <text class="reward-time" style="{{t.muted}}">{{redeemTimeText}}</text>
+            <div class="reward-divider" style="{{t.line}}"></div>
+            <text class="reward-caption" style="{{t.sub}}">获得奖励</text>
+            <div class="reward-row" for="{{rewardLines}}" tid="id">
+              <text class="reward-name-l" style="{{t.sub}}">{{$item.name}}</text>
+              <text class="reward-count" style="{{t.accent}}">{{$item.count}}</text>
+            </div>
+            <div class="btn reward-btn" style="{{doneBtnStyle}}" onclick="finishSuccess">
+              <text class="btn-text" style="{{t.onAccent}}">完成</text>
+            </div>
+          </div>
+          <text class="success-note" style="{{t.muted}}">{{successNote}}</text>
+        </div>
+
+        <div class="recent-row">
+          <image class="recent-icon" src="{{t.iconClock}}"></image>
+          <text class="recent-text" style="{{recentStyle}}">{{recentText}}</text>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+import router from "@system.router"
+import storage from "@system.storage"
+import vibrator from "@system.vibrator"
+import { applyTheme, DEFAULT_STYLES } from "../../common/theme.js"
+
+const CODE_LEN = 8
+const MAX_REWARD_ROWS = 2
+
+const VALID_CODES = {
+  "20261017": { name: "蓝桥迎新礼包", rewards: [{ name: "金币", count: "×5000" }, { name: "体验券", count: "×1" }] },
+  "88888888": { name: "股市大亨礼包", rewards: [{ name: "金币", count: "×8888" }] },
+  "12345678": { name: "测试礼包", rewards: [{ name: "金币", count: "×1000" }] },
+  "66668888": { name: "周年庆礼包", rewards: [{ name: "金币", count: "×6666" }, { name: "徽章", count: "×1" }] },
+  "13145200": { name: "幸运礼包", rewards: [{ name: "金币", count: "×520" }] }
+}
+
+const EXTRA_6_CODES = {
+  "888888": { name: "六位体验礼包", rewards: [{ name: "金币", count: "×888" }] },
+  "520520": { name: "六位浪漫礼包", rewards: [{ name: "金币", count: "×520" }, { name: "体验券", count: "×1" }] },
+  "123456": { name: "六位测试礼包", rewards: [{ name: "金币", count: "×600" }] }
+}
+
+const ACTIVE_CODES = CODE_LEN === 6 ? EXTRA_6_CODES : VALID_CODES
+const KEY_REDEEMED = "bb_gift_redeemed_v1"
+const KEY_LAST = "bb_gift_last_v1"
+
+const KEY_DEFS = [
+  { id: "k1", label: "1", kind: "num" },
+  { id: "k2", label: "2", kind: "num" },
+  { id: "k3", label: "3", kind: "num" },
+  { id: "k4", label: "4", kind: "num" },
+  { id: "k5", label: "5", kind: "num" },
+  { id: "k6", label: "6", kind: "num" },
+  { id: "k7", label: "7", kind: "num" },
+  { id: "k8", label: "8", kind: "num" },
+  { id: "k9", label: "9", kind: "num" },
+  { id: "kdel", label: "删除", kind: "del" },
+  { id: "k0", label: "0", kind: "num" },
+  { id: "kok", label: "确认", kind: "ok" }
+]
+
+function mergeStyle(base, patch) {
+  return Object.assign({}, base || {}, patch || {})
+}
+
+function pad2(value) {
+  return value < 10 ? "0" + value : "" + value
+}
+
+function nowText() {
+  const date = new Date()
+  return pad2(date.getMonth() + 1) + "-" + pad2(date.getDate()) + " " + pad2(date.getHours()) + ":" + pad2(date.getMinutes())
+}
+
+function parseRedeemed(raw) {
+  const result = { v: 1, codes: [] }
+  if (!raw) return result
+  let data = null
+  try {
+    data = JSON.parse(raw)
+  } catch (e) {
+    return result
+  }
+  if (!data || typeof data !== "object" || !Array.isArray(data.codes)) return result
+  for (let i = 0; i < data.codes.length; i += 1) {
+    const code = data.codes[i]
+    if (typeof code === "string" && code.length > 0 && result.codes.indexOf(code) < 0) {
+      result.codes.push(code)
+    }
+  }
+  return result
+}
+
+function parseLast(raw) {
+  const result = { v: 1, code: "", timeText: "" }
+  if (!raw) return result
+  let data = null
+  try {
+    data = JSON.parse(raw)
+  } catch (e) {
+    return result
+  }
+  if (!data || typeof data !== "object") return result
+  if (typeof data.code === "string") result.code = data.code
+  if (typeof data.timeText === "string") result.timeText = data.timeText
+  return result
+}
+
+function buildCellModels(tokens, total, text) {
+  const cells = []
+  const filled = text.length
+  for (let i = 0; i < total; i += 1) {
+    const current = i === filled && filled < total
+    let style = Object.assign({}, tokens.tile)
+    if (current) style = Object.assign(style, tokens.accentBorder)
+    cells.push({
+      id: "c" + i,
+      label: i < filled ? text.charAt(i) : "",
+      gapCls: i < total - 1 ? "cell-gap" : "",
+      style: style,
+      textStyle: current ? tokens.accent : tokens.text
+    })
+  }
+  return cells
+}
+
+function buildKeyModels(tokens, pressedId, pressedCls) {
+  const rows = [[], [], [], []]
+  for (let i = 0; i < KEY_DEFS.length; i += 1) {
+    const def = KEY_DEFS[i]
+    const pressed = pressedId === def.id
+    const isOk = def.kind === "ok"
+    let style = null
+    let textStyle = null
+    if (pressed) {
+      style = isOk ? mergeStyle(tokens.key, tokens.border) : mergeStyle(tokens.accentBg, tokens.accentBorder)
+      textStyle = isOk ? tokens.accent : tokens.onAccent
+    } else {
+      style = isOk ? mergeStyle(tokens.accentBg, tokens.accentBorder) : mergeStyle(tokens.key, tokens.border)
+      textStyle = isOk ? tokens.onAccent : tokens.keyText
+    }
+    rows[Math.floor(i / 3)].push({
+      id: def.id,
+      label: def.label,
+      kind: def.kind,
+      style: style,
+      textStyle: textStyle,
+      gapCls: i % 3 === 2 ? "" : "key-gap",
+      cls: pressed ? pressedCls : ""
+    })
+  }
+  return rows
+}
+
+const INITIAL_ROWS = buildKeyModels(DEFAULT_STYLES, "", "")
+const INITIAL_CELLS = buildCellModels(DEFAULT_STYLES, CODE_LEN, "")
+
+export default {
+  private: {
+    t: DEFAULT_STYLES,
+    codeLen: CODE_LEN,
+    metaText: CODE_LEN + " 位",
+    inputVisible: true,
+    successVisible: false,
+    codeText: "",
+    cells: INITIAL_CELLS,
+    row1: INITIAL_ROWS[0],
+    row2: INITIAL_ROWS[1],
+    row3: INITIAL_ROWS[2],
+    row4: INITIAL_ROWS[3],
+    hintText: "",
+    hintStyle: DEFAULT_STYLES.danger,
+    shakeCls: "",
+    recentText: "暂无兑换记录",
+    recentStyle: DEFAULT_STYLES.muted,
+    cardStyle: mergeStyle(DEFAULT_STYLES.card, DEFAULT_STYLES.border),
+    doneBtnStyle: mergeStyle(DEFAULT_STYLES.accentBg, DEFAULT_STYLES.accentBorder),
+    rewardName: "",
+    rewardLines: [],
+    redeemTimeText: "",
+    successNote: "已存入兑换记录",
+    busy: false
+  },
+  onInit() {
+    this.redeemedCodes = []
+    this.lastCode = ""
+    this.lastTimeText = ""
+    this.pressedId = ""
+    this.pressedCls = ""
+    this.animToggle = false
+    this.shakeToggle = false
+    this.flashTimer = null
+    this.shakeTimer = null
+    this.busyTimer = null
+    this.longPressStartTimer = null
+    this.longPressTickTimer = null
+    this.longPressTicks = 0
+    this.suppressClick = false
+    this.buildCells()
+    this.buildKeys()
+    this.readStorage()
+    this.applyThemeTokens()
+  },
+  onShow() {
+    this.applyThemeTokens()
+    if (this.busy) {
+      if (this.busyTimer) {
+        clearTimeout(this.busyTimer)
+        this.busyTimer = null
+      }
+      this.busy = false
+    }
+  },
+  onHide() {
+    this.clearTimers()
+  },
+  onDestroy() {
+    this.clearTimers()
+  },
+  back() {
+    router.back()
+  },
+  applyThemeTokens() {
+    applyTheme(this, () => {
+      this.buildCells()
+      this.buildKeys()
+      this.cardStyle = mergeStyle(this.t.card, this.t.border)
+      this.doneBtnStyle = mergeStyle(this.t.accentBg, this.t.accentBorder)
+      this.refreshRecent()
+    })
+  },
+  setHint(text) {
+    this.hintText = text
+  },
+  clearHint() {
+    this.hintText = ""
+  },
+  buildCells() {
+    this.cells = buildCellModels(this.t, this.codeLen, this.codeText)
+  },
+  buildKeys() {
+    const rows = buildKeyModels(this.t, this.pressedId, this.pressedCls)
+    this.row1 = rows[0]
+    this.row2 = rows[1]
+    this.row3 = rows[2]
+    this.row4 = rows[3]
+  },
+  refreshInput() {
+    this.buildCells()
+  },
+  vibrate() {
+    try {
+      vibrator.vibrate({ mode: "short" })
+    } catch (e) {
+      // 部分模式/电量下马达不可用，忽略。
+    }
+  },
+  flashKey(item) {
+    if (this.flashTimer) {
+      clearTimeout(this.flashTimer)
+      this.flashTimer = null
+    }
+    this.animToggle = !this.animToggle
+    this.pressedId = item.id
+    this.pressedCls = this.animToggle ? "key-pop-a" : "key-pop-b"
+    this.buildKeys()
+    this.flashTimer = setTimeout(() => {
+      this.flashTimer = null
+      this.pressedId = ""
+      this.pressedCls = ""
+      this.buildKeys()
+    }, 150)
+  },
+  keyTouchStart(item) {
+    this.suppressClick = false
+    if (item.kind !== "del") return
+    this.stopLongPress()
+    this.longPressTicks = 0
+    this.longPressStartTimer = setTimeout(() => {
+      this.longPressStartTimer = null
+      this.longPressTicks = 0
+      this.suppressClick = true
+      this.vibrate()
+      this.longPressTickTimer = setInterval(() => {
+        this.deleteDigit(true)
+      }, 80)
+      this.deleteDigit(true)
+    }, 450)
+  },
+  keyTouchEnd() {
+    this.stopLongPress()
+  },
+  stopLongPress() {
+    if (this.longPressStartTimer) {
+      clearTimeout(this.longPressStartTimer)
+      this.longPressStartTimer = null
+    }
+    if (this.longPressTickTimer) {
+      clearInterval(this.longPressTickTimer)
+      this.longPressTickTimer = null
+    }
+  },
+  clearTimers() {
+    this.stopLongPress()
+    if (this.flashTimer) {
+      clearTimeout(this.flashTimer)
+      this.flashTimer = null
+    }
+    if (this.shakeTimer) {
+      clearTimeout(this.shakeTimer)
+      this.shakeTimer = null
+    }
+    if (this.busyTimer) {
+      clearTimeout(this.busyTimer)
+      this.busyTimer = null
+    }
+    this.busy = false
+    this.pressedId = ""
+    this.pressedCls = ""
+    this.shakeCls = ""
+    this.buildKeys()
+  },
+  onKey(item) {
+    this.stopLongPress()
+    if (this.suppressClick) {
+      this.suppressClick = false
+      return
+    }
+    if (this.busy) return
+    this.flashKey(item)
+    if (item.kind === "del") {
+      this.deleteDigit(false)
+    } else if (item.kind === "ok") {
+      this.confirmCode()
+    } else {
+      this.inputDigit(item.label)
+    }
+  },
+  inputDigit(digit) {
+    if (this.busy || !this.inputVisible) return
+    if (this.codeText.length >= this.codeLen) return
+    this.vibrate()
+    this.codeText = this.codeText + digit
+    this.clearHint()
+    this.refreshInput()
+  },
+  deleteDigit(longPress) {
+    if (this.busy || !this.inputVisible) {
+      this.stopLongPress()
+      return
+    }
+    if (this.codeText.length === 0) {
+      this.stopLongPress()
+      return
+    }
+    if (!longPress) this.vibrate()
+    this.codeText = this.codeText.slice(0, this.codeText.length - 1)
+    this.clearHint()
+    this.refreshInput()
+    if (longPress) {
+      this.longPressTicks += 1
+      if (this.codeText.length === 0 || this.longPressTicks >= 40) this.stopLongPress()
+    }
+  },
+  shakeInput() {
+    this.shakeToggle = !this.shakeToggle
+    this.shakeCls = this.shakeToggle ? "cell-shake-a" : "cell-shake-b"
+    if (this.shakeTimer) clearTimeout(this.shakeTimer)
+    this.shakeTimer = setTimeout(() => {
+      this.shakeTimer = null
+      this.shakeCls = ""
+    }, 320)
+  },
+  confirmCode() {
+    if (this.busy || !this.inputVisible) return
+    if (this.codeText.length < this.codeLen) {
+      this.vibrate()
+      this.setHint("请输入完整的 " + this.codeLen + " 位礼包码")
+      this.shakeInput()
+      return
+    }
+    const code = this.codeText
+    if (this.redeemedCodes.indexOf(code) >= 0) {
+      this.vibrate()
+      this.setHint("该礼包码已兑换过")
+      return
+    }
+    const pack = ACTIVE_CODES[code]
+    if (!pack) {
+      this.vibrate()
+      this.setHint("礼包码无效")
+      this.shakeInput()
+      return
+    }
+    this.busy = true
+    this.vibrate()
+    this.clearHint()
+    this.busyTimer = setTimeout(() => {
+      this.busyTimer = null
+      this.busy = false
+      this.applySuccess(code, pack)
+    }, 800)
+  },
+  applySuccess(code, pack) {
+    this.inputVisible = false
+    this.successVisible = true
+    this.rewardName = pack.name
+    const lines = []
+    for (let i = 0; i < pack.rewards.length && i < MAX_REWARD_ROWS; i += 1) {
+      lines.push({ id: "rw" + i, name: pack.rewards[i].name, count: pack.rewards[i].count })
+    }
+    this.rewardLines = lines
+    const timeText = nowText()
+    this.redeemTimeText = timeText + " 兑换"
+    this.redeemedCodes = this.redeemedCodes.concat([code])
+    this.lastCode = code
+    this.lastTimeText = timeText
+    this.refreshRecent()
+    this.saveRedeemed()
+    this.saveLast()
+    this.vibrate()
+  },
+  finishSuccess() {
+    this.inputVisible = true
+    this.successVisible = false
+    this.rewardName = ""
+    this.rewardLines = []
+    this.redeemTimeText = ""
+    this.codeText = ""
+    this.refreshInput()
+    this.vibrate()
+  },
+  readStorage() {
+    const that = this
+    storage.get({
+      key: KEY_REDEEMED,
+      success: function (value) {
+        that.redeemedCodes = parseRedeemed(value).codes
+      },
+      fail: function () {
+        that.redeemedCodes = []
+      }
+    })
+    storage.get({
+      key: KEY_LAST,
+      success: function (value) {
+        const parsed = parseLast(value)
+        that.lastCode = parsed.code
+        that.lastTimeText = parsed.timeText
+        that.refreshRecent()
+      },
+      fail: function () {
+        that.lastCode = ""
+        that.lastTimeText = ""
+        that.refreshRecent()
+      }
+    })
+  },
+  saveRedeemed() {
+    storage.set({ key: KEY_REDEEMED, value: JSON.stringify({ v: 1, codes: this.redeemedCodes }) })
+  },
+  saveLast() {
+    storage.set({ key: KEY_LAST, value: JSON.stringify({ v: 1, code: this.lastCode, timeText: this.lastTimeText }) })
+  },
+  refreshRecent() {
+    if (this.lastCode) {
+      this.recentText = "最近兑换 · " + this.lastCode
+      this.recentStyle = this.t.accent
+    } else {
+      this.recentText = "暂无兑换记录"
+      this.recentStyle = this.t.muted
+    }
+  }
+}
+</script>
+<style>
+@import "../../common/theme.css";
+
+.gift-input-wrap {
+  width: 320px;
+  height: 358px;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.cell-row {
+  width: 320px;
+  height: 48px;
+  margin-top: 12px;
+  flex-direction: row;
+  justify-content: center;
+  flex-shrink: 0;
+  animation-duration: 280ms;
+  animation-timing-function: ease-out;
+  animation-iteration-count: 1;
+}
+
+.cell {
+  width: 36px;
+  height: 48px;
+  border-width: 2px;
+  border-radius: 12px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.cell-gap {
+  margin-right: 4px;
+}
+
+.cell-text {
+  font-size: 34px;
+  font-weight: bold;
+  lines: 1;
+}
+
+.hint-text {
+  width: 320px;
+  height: 26px;
+  margin-top: 4px;
+  font-size: 20px;
+  line-height: 26px;
+  text-align: center;
+  lines: 1;
+}
+
+.keypad {
+  width: 316px;
+  height: 264px;
+  margin-top: 4px;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.key-row {
+  width: 316px;
+  height: 60px;
+  flex-direction: row;
+  flex-shrink: 0;
+}
+
+.key-row-gap {
+  margin-top: 8px;
+}
+
+.key {
+  width: 100px;
+  height: 60px;
+  border-width: 1px;
+  border-radius: 18px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  animation-duration: 140ms;
+  animation-timing-function: ease-out;
+  animation-iteration-count: 1;
+}
+
+.key-gap {
+  margin-right: 8px;
+}
+
+.key-text {
+  font-size: 38px;
+  font-weight: bold;
+  lines: 1;
+}
+
+.key-pop-a {
+  animation-name: key-pop-a;
+}
+
+.key-pop-b {
+  animation-name: key-pop-b;
+}
+
+@keyframes key-pop-a {
+  0% { transform: scale(1); }
+  40% { transform: scale(0.9); }
+  100% { transform: scale(1); }
+}
+
+@keyframes key-pop-b {
+  0% { transform: scale(1); }
+  40% { transform: scale(0.9); }
+  100% { transform: scale(1); }
+}
+
+.cell-shake-a {
+  animation-name: cell-shake-a;
+}
+
+.cell-shake-b {
+  animation-name: cell-shake-b;
+}
+
+@keyframes cell-shake-a {
+  0% { transform: translateX(0px); }
+  20% { transform: translateX(-7px); }
+  40% { transform: translateX(7px); }
+  60% { transform: translateX(-5px); }
+  80% { transform: translateX(5px); }
+  100% { transform: translateX(0px); }
+}
+
+@keyframes cell-shake-b {
+  0% { transform: translateX(0px); }
+  20% { transform: translateX(-7px); }
+  40% { transform: translateX(7px); }
+  60% { transform: translateX(-5px); }
+  80% { transform: translateX(5px); }
+  100% { transform: translateX(0px); }
+}
+
+.gift-success-wrap {
+  width: 320px;
+  height: 344px;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.reward-card {
+  height: 316px;
+  padding: 16px;
+  border-width: 1px;
+}
+
+.reward-head {
+  width: 288px;
+  height: 46px;
+  flex-direction: row;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.reward-icon {
+  width: 42px;
+  height: 42px;
+  margin-right: 10px;
+  object-fit: contain;
+}
+
+.reward-title {
+  flex: 1;
+  font-size: 28px;
+  font-weight: bold;
+  lines: 1;
+}
+
+.reward-pack {
+  width: 288px;
+  height: 32px;
+  margin-top: 6px;
+  font-size: 24px;
+  font-weight: bold;
+  lines: 1;
+  text-overflow: ellipsis;
+}
+
+.reward-time {
+  width: 288px;
+  height: 20px;
+  margin-top: 2px;
+  font-size: 17px;
+  lines: 1;
+}
+
+.reward-divider {
+  width: 288px;
+  height: 1px;
+  margin-top: 8px;
+  flex-shrink: 0;
+}
+
+.reward-caption {
+  width: 288px;
+  height: 22px;
+  margin-top: 6px;
+  font-size: 18px;
+  font-weight: bold;
+  lines: 1;
+}
+
+.reward-row {
+  width: 288px;
+  height: 28px;
+  margin-top: 2px;
+  flex-direction: row;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.reward-name-l {
+  flex: 1;
+  font-size: 21px;
+  lines: 1;
+}
+
+.reward-count {
+  font-size: 21px;
+  font-weight: bold;
+  lines: 1;
+}
+
+.reward-btn {
+  width: 288px;
+  margin-top: 14px;
+}
+
+.success-note {
+  width: 320px;
+  height: 22px;
+  margin-top: 8px;
+  font-size: 18px;
+  text-align: center;
+  lines: 1;
+}
+
+.recent-row {
+  width: 320px;
+  height: 26px;
+  margin-top: 4px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.recent-icon {
+  width: 20px;
+  height: 20px;
+  margin-right: 6px;
+  object-fit: contain;
+}
+
+.recent-text {
+  font-size: 18px;
+  lines: 1;
+}
+</style>

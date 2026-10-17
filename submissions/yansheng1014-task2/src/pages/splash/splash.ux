@@ -1,0 +1,41 @@
+<template>
+  <div class="splash" style="{{t.page}}">
+    <image static class="logo" src="/common/splash-logo-v4.png"></image>
+    <text class="splash-name" style="{{t.text}}">股市大亨</text>
+    <text class="splash-sub" style="{{t.sub}}">蓝桥工作室 · 招新评测静态壳</text>
+  </div>
+</template>
+<script>
+import router from "@system.router"
+import { applyTheme, DEFAULT_STYLES } from "../../common/theme.js"
+export default {
+  private: {
+    t: DEFAULT_STYLES,
+    timer: null
+  },
+  onInit() {
+    applyTheme(this)
+    this.timer = setTimeout(function () {
+      router.push({
+        uri: "/pages/home",
+        params: {
+          ___PARAM_LAUNCH_FLAG___: "clearTask"
+        }
+      })
+    }, 800)
+  },
+  onShow() {
+    applyTheme(this)
+  },
+  onDestroy() {
+    if (this.timer !== null) clearTimeout(this.timer)
+  }
+}
+</script>
+<style>
+@import "../../common/theme.css";
+.splash { width: 336px; height: 480px; padding: 46px 8px 24px 8px; flex-direction: column; align-items: center; justify-content: center; background-color: #000000; }
+.logo { width: 230px; height: 230px; object-fit: contain; }
+.splash-name { margin-top: 16px; color: #ffffff; font-size: 34px; font-weight: bold; }
+.splash-sub { margin-top: 8px; color: #8e8e93; font-size: 18px; }
+</style>

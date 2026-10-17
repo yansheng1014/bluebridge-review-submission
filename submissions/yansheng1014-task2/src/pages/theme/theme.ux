@@ -1,0 +1,688 @@
+<template>
+  <div class="page" style="{{t.page}}">
+    <div class="topbar" style="{{t.topbar}}">
+      <div class="back-hit" onclick="back">
+        <image class="back-icon" src="{{t.iconBack}}"></image>
+      </div>
+      <text class="top-title" style="{{t.text}}">颜色主题</text>
+    </div>
+    <div class="content-layer flow-content-layer" style="{{t.page}}">
+      <scroll class="theme-scroll" scroll-y="true" scroll-x="false" style="{{t.page}}">
+        <text class="section-title theme-section" style="{{t.sub}}">实时预览</text>
+        <div class="preview-card" style="{{t.card}}">
+          <div class="mini-screen" style="{{miniScreen}}">
+            <div class="mini-head">
+              <text class="mini-title" style="{{t.text}}">总资产</text>
+              <div class="mini-dot" style="{{t.accentBg}}"></div>
+            </div>
+            <div class="mini-card" style="{{t.card}}">
+              <text class="mini-label" style="{{t.sub}}">可用资金</text>
+              <text class="mini-value" style="{{t.text}}">80,000</text>
+            </div>
+            <div class="mini-btn" style="{{t.accentBg}}">
+              <text class="mini-btn-text" style="{{t.onAccent}}">切换主题</text>
+            </div>
+          </div>
+          <div class="preview-legend">
+            <div class="legend-row">
+              <div class="legend-dot" style="{{bars.page}}"></div>
+              <text class="legend-text" style="{{t.sub}}">页面底色</text>
+            </div>
+            <div class="legend-row">
+              <div class="legend-dot" style="{{bars.card}}"></div>
+              <text class="legend-text" style="{{t.sub}}">卡片背景</text>
+            </div>
+            <div class="legend-row">
+              <div class="legend-dot" style="{{bars.text}}"></div>
+              <text class="legend-text" style="{{t.sub}}">主文字</text>
+            </div>
+            <div class="legend-row">
+              <div class="legend-dot" style="{{bars.accent}}"></div>
+              <text class="legend-text" style="{{t.sub}}">强调色</text>
+            </div>
+          </div>
+        </div>
+
+        <text class="section-title theme-section" style="{{t.sub}}">预设主题</text>
+        <div class="card-row preset-card {{$item.pressClass}}" for="{{presets}}" tid="id" style="{{$item.cardStyle}}" onclick="applyPreset($item.id)">
+          <div class="preset-text">
+            <text class="preset-name" style="{{t.text}}">{{$item.name}}</text>
+            <text class="preset-note" style="{{t.sub}}">{{$item.note}}</text>
+          </div>
+          <div class="preset-dots">
+            <div class="preset-dot" style="{{$item.dotBg}}"></div>
+            <div class="preset-dot" style="{{$item.dotSurface}}"></div>
+            <div class="preset-dot" style="{{$item.dotAccent}}"></div>
+          </div>
+          <div class="preset-check">
+            <image class="preset-check-icon" src="{{t.iconCheck}}" show="{{$item.selected}}"></image>
+          </div>
+        </div>
+
+        <text class="section-title theme-section" style="{{t.sub}}">强调色</text>
+        <div class="card accent-card" style="{{t.card}}">
+          <div class="swatch-row">
+            <div class="swatch-hit {{$item.pressClass}}" for="{{swatches}}" tid="key" style="{{$item.ringStyle}}" onclick="selectAccent($item.key, $item.color)">
+              <div class="swatch-dot" style="{{$item.dotStyle}}"></div>
+            </div>
+          </div>
+          <div class="default-accent {{defaultPressClass}}" style="{{defaultChipStyle}}" onclick="selectDefaultAccent">
+            <image class="default-check-icon" src="{{t.iconCheck}}" show="{{defaultSelected}}"></image>
+            <text class="default-text" style="{{defaultTextStyle}}">默认（跟随主题）</text>
+          </div>
+        </div>
+
+        <text class="section-title theme-section" style="{{t.sub}}">可读性</text>
+        <div class="card contrast-card" style="{{t.card}}">
+          <div class="contrast-row">
+            <text class="contrast-label" style="{{t.sub}}">正文 / 背景</text>
+            <text class="contrast-value" style="{{t.text}}">{{textRatioText}}</text>
+            <text class="contrast-grade" style="{{textGradeStyle}}">{{textGrade}}</text>
+          </div>
+          <div class="progress-track contrast-track" style="{{t.line}}">
+            <div class="progress-fill" style="{{textBarStyle}}"></div>
+          </div>
+          <div class="contrast-row contrast-row-gap">
+            <text class="contrast-label" style="{{t.sub}}">强调 / 背景</text>
+            <text class="contrast-value" style="{{t.text}}">{{accentRatioText}}</text>
+            <text class="contrast-grade" style="{{accentGradeStyle}}">{{accentGrade}}</text>
+          </div>
+          <div class="progress-track contrast-track" style="{{t.line}}">
+            <div class="progress-fill" style="{{accentBarStyle}}"></div>
+          </div>
+          <div class="contrast-status">
+            <text class="contrast-status-text" style="{{contrastStatusStyle}}">{{contrastStatus}}</text>
+          </div>
+        </div>
+
+        <div class="btn reset-btn {{resetPressClass}}" style="{{t.tile}}" onclick="restoreDefaults">
+          <text class="btn-text" style="{{t.accent}}">恢复默认主题</text>
+        </div>
+        <text class="theme-foot" style="{{t.muted}}">恢复为午夜黑金 · 主题自带强调色</text>
+      </scroll>
+    </div>
+  </div>
+</template>
+<script>
+import router from "@system.router"
+import prompt from "@system.prompt"
+import vibrator from "@system.vibrator"
+import {
+  applyTheme,
+  writeTheme,
+  resetTheme,
+  DEFAULT_STYLES,
+  THEMES,
+  ACCENT_SWATCHES,
+  contrastRatio,
+  contrastLabel
+} from "../../common/theme.js"
+
+// 对比度进度条：21:1 为 WCAG 理论最大值，条宽与可读性等级同步。
+const MAX_RATIO = 21
+const BAR_FULL = 292
+
+export default {
+  private: {
+    t: DEFAULT_STYLES,
+    themeName: "午夜黑金",
+    selectedId: "midnight",
+    accent: "",
+    presets: [],
+    swatches: [],
+    miniScreen: {},
+    bars: { page: {}, card: {}, text: {}, accent: {} },
+    defaultSelected: true,
+    defaultChipStyle: {},
+    defaultTextStyle: {},
+    defaultPressClass: "",
+    resetPressClass: "",
+    textRatioText: "",
+    textGrade: "",
+    textGradeStyle: {},
+    textBarStyle: {},
+    accentRatioText: "",
+    accentGrade: "",
+    accentGradeStyle: {},
+    accentBarStyle: {},
+    contrastStatus: "",
+    contrastStatusStyle: {},
+    pressKey: "",
+    pressTimer: 0
+  },
+  onInit() {
+    this.refreshTheme()
+  },
+  onShow() {
+    this.refreshTheme()
+  },
+  onDestroy() {
+    if (this.pressTimer) {
+      clearTimeout(this.pressTimer)
+      this.pressTimer = 0
+    }
+  },
+  // storage 异步：读到主题后再刷新令牌与所有派生状态。
+  refreshTheme() {
+    applyTheme(this, (state, styles) => {
+      this.refreshView(styles, state)
+    })
+  },
+  refreshView(styles, state) {
+    const tokens = styles.tokens
+    this.t = styles
+    this.themeName = styles.name
+    this.selectedId = state.themeId
+    this.accent = state.accent
+    this.miniScreen = { backgroundColor: tokens.bg, borderColor: tokens.border }
+    this.bars = {
+      page: { backgroundColor: tokens.bg, borderColor: tokens.border },
+      card: { backgroundColor: tokens.surface, borderColor: tokens.border },
+      text: { backgroundColor: tokens.text, borderColor: tokens.border },
+      accent: { backgroundColor: tokens.accent, borderColor: tokens.border }
+    }
+    this.buildPresets(tokens, state)
+    this.buildSwatches(tokens, state)
+    this.buildContrast(tokens)
+  },
+  // 5 套预设卡：每卡 = 名称 + 说明 + 三色色板 + 选中对勾。
+  buildPresets(tokens, state) {
+    const list = []
+    for (let i = 0; i < THEMES.length; i += 1) {
+      const theme = THEMES[i]
+      const selected = theme.id === state.themeId
+      list.push({
+        id: theme.id,
+        name: theme.name,
+        note: theme.note,
+        selected: selected,
+        pressClass: this.pressKey === "preset:" + theme.id ? "is-press" : "",
+        dotBg: { backgroundColor: theme.tokens.bg, borderColor: tokens.border },
+        dotSurface: { backgroundColor: theme.tokens.surface, borderColor: tokens.border },
+        dotAccent: { backgroundColor: theme.tokens.accent, borderColor: tokens.border },
+        cardStyle: {
+          backgroundColor: tokens.surface,
+          borderColor: selected ? tokens.accent : tokens.border
+        }
+      })
+    }
+    this.presets = list
+  },
+  // 强调色：6 个圆形色板 + 「默认」；选中项外圈用当前强调色。
+  buildSwatches(tokens, state) {
+    const list = []
+    const current = String(state.accent || "").toLowerCase()
+    for (let i = 0; i < ACCENT_SWATCHES.length; i += 1) {
+      const color = ACCENT_SWATCHES[i]
+      const selected = current === color.toLowerCase()
+      list.push({
+        key: "accent:" + i,
+        color: color,
+        dotStyle: { backgroundColor: color },
+        ringStyle: { borderColor: selected ? tokens.accent : tokens.border },
+        pressClass: this.pressKey === "accent:" + i ? "is-press" : ""
+      })
+    }
+    this.swatches = list
+    const isDefault = !state.accent
+    this.defaultSelected = isDefault
+    this.defaultChipStyle = {
+      backgroundColor: tokens.surfaceSoft,
+      borderColor: isDefault ? tokens.accent : tokens.border
+    }
+    this.defaultTextStyle = { color: isDefault ? tokens.accent : tokens.sub }
+    this.defaultPressClass = this.pressKey === "default" ? "is-press" : ""
+  },
+  // 可读性：正文/背景、强调/背景的 WCAG 对比度与等级，低于 3 给危险色提示。
+  buildContrast(tokens) {
+    const textRatio = contrastRatio(tokens.text, tokens.bg)
+    const accentRatio = contrastRatio(tokens.accent, tokens.bg)
+    const textGrade = contrastLabel(textRatio)
+    const accentGrade = contrastLabel(accentRatio)
+    this.textRatioText = this.formatRatio(textRatio)
+    this.accentRatioText = this.formatRatio(accentRatio)
+    this.textGrade = textGrade
+    this.accentGrade = accentGrade
+    this.textGradeStyle = { color: this.gradeColor(tokens, textGrade) }
+    this.accentGradeStyle = { color: this.gradeColor(tokens, accentGrade) }
+    this.textBarStyle = { width: this.barWidth(textRatio) + "px", backgroundColor: this.gradeColor(tokens, textGrade) }
+    this.accentBarStyle = { width: this.barWidth(accentRatio) + "px", backgroundColor: this.gradeColor(tokens, accentGrade) }
+    const low = textRatio < 3 || accentRatio < 3
+    this.contrastStatus = low ? "对比度偏低，已自动保留主文字色" : "对比度达标 · WCAG 2.1"
+    this.contrastStatusStyle = { color: low ? tokens.danger : tokens.sub }
+  },
+  formatRatio(ratio) {
+    return ratio.toFixed(1) + " : 1"
+  },
+  barWidth(ratio) {
+    const safe = ratio > MAX_RATIO ? MAX_RATIO : ratio
+    const width = Math.round((safe / MAX_RATIO) * BAR_FULL)
+    return width < 6 ? 6 : width
+  },
+  gradeColor(tokens, grade) {
+    if (grade === "优秀" || grade === "良好") return tokens.success
+    if (grade === "勉强") return tokens.warning
+    return tokens.danger
+  },
+  // 按压反馈：170ms 缩放脉冲，只动当前点的元素。
+  markPress(key) {
+    this.pressKey = key
+    this.refreshPress()
+    if (this.pressTimer) clearTimeout(this.pressTimer)
+    this.pressTimer = setTimeout(() => {
+      this.pressTimer = 0
+      this.pressKey = ""
+      this.refreshPress()
+    }, 190)
+  },
+  refreshPress() {
+    const tokens = this.t.tokens
+    const state = { themeId: this.selectedId, accent: this.accent }
+    this.buildPresets(tokens, state)
+    this.buildSwatches(tokens, state)
+    this.resetPressClass = this.pressKey === "reset" ? "is-press" : ""
+  },
+  // writeTheme 回调里同时刷新 t、选中态与提示；storage 失败也先更新 UI。
+  applyPreset(themeId) {
+    this.vibrateShort()
+    this.markPress("preset:" + themeId)
+    writeTheme({ themeId: themeId }, (state, styles) => {
+      this.refreshView(styles, state)
+      this.toast("已应用并保存：" + styles.name)
+    })
+  },
+  selectAccent(key, color) {
+    this.vibrateShort()
+    this.markPress(key)
+    writeTheme({ accent: color }, (state, styles) => {
+      this.refreshView(styles, state)
+      this.toast("已应用并保存 · 强调色")
+    })
+  },
+  selectDefaultAccent() {
+    this.vibrateShort()
+    this.markPress("default")
+    writeTheme({ accent: "" }, (state, styles) => {
+      this.refreshView(styles, state)
+      this.toast("已应用并保存 · 默认强调色")
+    })
+  },
+  restoreDefaults() {
+    this.vibrateShort()
+    this.markPress("reset")
+    resetTheme((state, styles) => {
+      this.refreshView(styles, state)
+      this.toast("已恢复默认主题")
+    })
+  },
+  vibrateShort() {
+    try {
+      vibrator.vibrate({ mode: "short" })
+    } catch (err) {
+      console.warn("vibrate failed: " + err)
+    }
+  },
+  toast(message) {
+    try {
+      prompt.showToast({ message: message, duration: 1500 })
+    } catch (err) {
+      console.warn("toast failed: " + err)
+    }
+  },
+  back() {
+    router.back()
+  }
+}
+</script>
+<style>
+@import "../../common/theme.css";
+
+.theme-scroll {
+  width: 336px;
+  height: 408px;
+  padding: 0 8px 24px 8px;
+  flex-direction: column;
+}
+
+.theme-section {
+  flex-shrink: 0;
+}
+
+/* 实时预览：迷你界面（页面底/卡片/文字/强调色）+ 图例 */
+.preview-card {
+  width: 320px;
+  height: 140px;
+  padding: 12px;
+  border-radius: 22px;
+  flex-direction: row;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.mini-screen {
+  width: 150px;
+  height: 116px;
+  padding: 6px;
+  border-width: 1px;
+  border-radius: 16px;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.mini-head {
+  width: 136px;
+  height: 20px;
+  flex-direction: row;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.mini-title {
+  flex: 1;
+  font-size: 17px;
+  line-height: 20px;
+  font-weight: bold;
+  lines: 1;
+}
+
+.mini-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.mini-card {
+  width: 136px;
+  height: 50px;
+  margin-top: 4px;
+  padding: 4px 8px;
+  border-radius: 12px;
+  flex-direction: column;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.mini-label {
+  width: 120px;
+  height: 20px;
+  font-size: 17px;
+  line-height: 20px;
+  lines: 1;
+}
+
+.mini-value {
+  width: 120px;
+  height: 20px;
+  font-size: 17px;
+  line-height: 20px;
+  font-weight: bold;
+  lines: 1;
+}
+
+.mini-btn {
+  width: 136px;
+  height: 24px;
+  margin-top: 4px;
+  border-radius: 12px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.mini-btn-text {
+  font-size: 17px;
+  line-height: 24px;
+  font-weight: bold;
+  lines: 1;
+}
+
+.preview-legend {
+  width: 134px;
+  height: 116px;
+  margin-left: 12px;
+  flex-direction: column;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.legend-row {
+  width: 134px;
+  height: 24px;
+  flex-direction: row;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.legend-dot {
+  width: 16px;
+  height: 16px;
+  border-width: 1px;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.legend-text {
+  flex: 1;
+  margin-left: 8px;
+  font-size: 17px;
+  line-height: 24px;
+  lines: 1;
+  text-overflow: ellipsis;
+}
+
+/* 预设主题卡：320 × 78，选中描边用强调色 + 对勾 */
+.preset-card {
+  height: 86px;
+  margin-bottom: 7px;
+  padding: 0 14px;
+  border-width: 2px;
+}
+
+.preset-text {
+  flex: 1;
+  flex-direction: column;
+}
+
+.preset-name {
+  font-size: 30px;
+  line-height: 32px;
+  font-weight: bold;
+  lines: 1;
+  text-overflow: ellipsis;
+}
+
+.preset-note {
+  margin-top: 2px;
+  font-size: 18px;
+  line-height: 22px;
+  lines: 1;
+  text-overflow: ellipsis;
+}
+
+.preset-dots {
+  width: 60px;
+  margin-left: 8px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.preset-dot {
+  width: 20px;
+  height: 20px;
+  border-width: 1px;
+  border-radius: 8px;
+}
+
+.preset-check {
+  width: 28px;
+  height: 28px;
+  margin-left: 6px;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.preset-check-icon {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+}
+
+/* 强调色：6 个圆形色板 + 默认（跟随主题） */
+.accent-card {
+  height: 120px;
+  margin-bottom: 8px;
+  padding: 12px;
+}
+
+.swatch-row {
+  width: 296px;
+  height: 40px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.swatch-hit {
+  width: 44px;
+  height: 44px;
+  margin-right: 4px;
+  border-width: 2px;
+  border-radius: 22px;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.swatch-dot {
+  width: 34px;
+  height: 34px;
+  border-radius: 17px;
+}
+
+.default-accent {
+  width: 296px;
+  height: 44px;
+  margin-top: 8px;
+  border-width: 2px;
+  border-radius: 20px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.default-check-icon {
+  width: 22px;
+  height: 22px;
+  margin-right: 6px;
+  object-fit: contain;
+}
+
+.default-text {
+  font-size: 20px;
+  line-height: 24px;
+  font-weight: bold;
+  lines: 1;
+}
+
+/* 可读性：两条对比度 + 等级 + 提示 */
+.contrast-card {
+  height: 156px;
+  margin-bottom: 8px;
+  padding: 12px 14px;
+}
+
+.contrast-row {
+  width: 292px;
+  height: 30px;
+  flex-direction: row;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.contrast-label {
+  width: 120px;
+  font-size: 19px;
+  line-height: 30px;
+  lines: 1;
+}
+
+.contrast-value {
+  width: 112px;
+  font-size: 21px;
+  line-height: 30px;
+  font-weight: bold;
+  text-align: right;
+  lines: 1;
+}
+
+.contrast-grade {
+  flex: 1;
+  font-size: 19px;
+  line-height: 30px;
+  font-weight: bold;
+  text-align: right;
+  lines: 1;
+}
+
+.contrast-row-gap {
+  margin-top: 10px;
+}
+
+.contrast-track {
+  width: 292px;
+  margin-top: 6px;
+}
+
+.contrast-status {
+  width: 292px;
+  height: 24px;
+  margin-top: 8px;
+  flex-shrink: 0;
+}
+
+.contrast-status-text {
+  width: 292px;
+  font-size: 17px;
+  line-height: 24px;
+  lines: 1;
+  text-overflow: ellipsis;
+}
+
+/* 恢复默认 */
+.reset-btn {
+  width: 320px;
+  margin-top: 12px;
+}
+
+.theme-foot {
+  width: 320px;
+  height: 30px;
+  margin-top: 8px;
+  font-size: 18px;
+  line-height: 28px;
+  text-align: center;
+  lines: 1;
+  flex-shrink: 0;
+}
+
+/* 按压/点击反馈：只做缩放，170ms，克制的单元素动画 */
+@keyframes press-pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(0.96); }
+  100% { transform: scale(1); }
+}
+
+.is-press {
+  animation-name: press-pulse;
+  animation-duration: 170ms;
+  animation-timing-function: ease-out;
+  animation-iteration-count: 1;
+}
+</style>

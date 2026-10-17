@@ -1,0 +1,73 @@
+<template>
+  <div class="page" style="{{t.page}}">
+    <div class="topbar" style="{{t.topbar}}">
+      <div class="back-hit" onclick="back">
+        <image class="back-icon" src="{{t.iconBack}}"></image>
+      </div>
+      <text class="top-title" style="{{t.text}}">关于</text>
+    </div>
+    <div class="content-layer flow-content-layer" style="{{t.page}}">
+      <scroll class="about-scroll" scroll-y="true" scroll-x="false" style="{{t.page}}">
+        <div class="app-card" style="{{t.card}}">
+          <image static class="about-logo" src="/common/app-logo-v4.png"></image>
+          <div class="app-copy">
+            <text class="app-name" style="{{t.text}}">股市大亨</text>
+            <text class="app-version" style="{{t.sub}}">评测版 · 版本 0.2.0</text>
+          </div>
+        </div>
+        <div class="studio-card" style="{{t.card}}">
+          <text class="studio-label" style="{{t.accent}}">蓝桥工作室 · 招新评测用静态壳工程</text>
+          <text class="studio-title" style="{{t.text}}">考试基底说明</text>
+          <text class="studio-text" style="{{t.sub}}">本工程为招新评测的考试基底，功能已裁剪，仅保留静态界面。</text>
+        </div>
+        <div class="data-card" style="{{t.card}}">
+          <text class="data-title" style="{{t.accent}}">数据说明</text>
+          <text class="data-text" style="{{t.sub}}">现金、行情与持仓均为固定虚构演示数据，不构成任何投资建议。</text>
+        </div>
+        <div class="copyright-card" style="{{t.tile}}">
+          <text class="copyright-title" style="{{t.accent}}">版权声明</text>
+          <text class="copyright-text" style="{{t.sub}}">© 蓝桥工作室。仅供招新评测使用，禁止外传或商用。完整条款见仓库根目录的 COPYRIGHT.md。</text>
+        </div>
+        <text class="about-repo" style="{{t.muted}}">GitHub · EstimateFaster/bluebridge-review</text>
+      </scroll>
+    </div>
+  </div>
+</template>
+<script>
+import router from "@system.router"
+import { applyTheme, DEFAULT_STYLES } from "../../common/theme.js"
+export default {
+  private: {
+    t: DEFAULT_STYLES
+  },
+  onInit() {
+    applyTheme(this)
+  },
+  onShow() {
+    applyTheme(this)
+  },
+  back() {
+    router.back()
+  }
+}
+</script>
+<style>
+@import "../../common/theme.css";
+.about-scroll { width: 336px; height: 408px; padding: 0 8px 24px 8px; flex-direction: column; background-color: #000000; }
+.app-card { width: 320px; height: 116px; padding: 14px; border-radius: 22px; flex-direction: row; align-items: center; background-color: #171717; }
+.about-logo { width: 84px; height: 84px; border-radius: 42px; object-fit: contain; }
+.app-copy { flex: 1; margin-left: 13px; flex-direction: column; }
+.app-name { color: #ffffff; font-size: 29px; font-weight: bold; lines: 1; }
+.app-version { margin-top: 5px; color: #a0a0a0; font-size: 20px; }
+.studio-card { width: 320px; height: 160px; margin-top: 8px; padding: 14px; border-radius: 22px; flex-direction: column; background-color: #171717; }
+.studio-label { width: 292px; height: 24px; color: #ffd400; font-size: 16px; line-height: 24px; font-weight: bold; lines: 1; }
+.studio-title { width: 292px; height: 30px; margin-top: 4px; color: #ffffff; font-size: 24px; line-height: 30px; font-weight: bold; lines: 1; }
+.studio-text { width: 292px; height: 48px; margin-top: 4px; color: #a0a0a0; font-size: 17px; line-height: 24px; lines: 2; }
+.data-card { width: 320px; height: 118px; margin-top: 8px; padding: 14px; border-radius: 22px; flex-direction: column; background-color: #171717; }
+.data-title { width: 292px; height: 28px; color: #ffd400; font-size: 20px; line-height: 28px; font-weight: bold; lines: 1; }
+.data-text { width: 292px; height: 48px; margin-top: 4px; color: #a0a0a0; font-size: 17px; line-height: 24px; lines: 2; }
+.copyright-card { width: 320px; height: 166px; margin-top: 8px; padding: 14px; border-radius: 22px; flex-direction: column; background-color: #221d08; border-width: 1px; border-color: #7a6711; }
+.copyright-title { width: 292px; height: 28px; color: #ffd400; font-size: 20px; line-height: 28px; font-weight: bold; lines: 1; }
+.copyright-text { width: 292px; height: 96px; margin-top: 4px; color: #d8c98a; font-size: 17px; line-height: 24px; lines: 4; }
+.about-repo { width: 320px; height: 28px; margin-top: 10px; color: #636366; font-size: 14px; line-height: 28px; text-align: center; }
+</style>

@@ -1,0 +1,106 @@
+<template>
+  <div class="page" style="{{t.page}}">
+    <div class="topbar" style="{{t.topbar}}">
+      <div class="back-hit" onclick="back">
+        <image class="back-icon" src="{{t.iconBack}}"></image>
+      </div>
+      <text class="top-title" style="{{t.text}}">设置</text>
+      <text class="top-meta" style="{{t.sub}}">{{themeName}}</text>
+    </div>
+    <div class="content-layer flow-content-layer">
+      <scroll class="settings-list" scroll-y="true" scroll-x="false" style="{{t.page}}">
+        <text class="section-title" style="{{t.sub}}">新增功能</text>
+        <div class="setting-tile" style="{{t.tile}}" onclick="openGift">
+          <image class="setting-icon" src="{{t.iconGift}}"></image>
+          <text class="setting-title" style="{{t.text}}">礼包码</text>
+          <image class="tile-next-icon" src="{{t.iconChevron}}"></image>
+        </div>
+        <div class="setting-tile" style="{{t.tile}}" onclick="openTheme">
+          <image class="setting-icon" src="{{t.iconTheme}}"></image>
+          <text class="setting-title" style="{{t.text}}">颜色主题</text>
+          <image class="tile-next-icon" src="{{t.iconChevron}}"></image>
+        </div>
+        <div class="setting-tile" style="{{t.tile}}" onclick="openTasks">
+          <image class="setting-icon" src="{{t.iconTasks}}"></image>
+          <text class="setting-title" style="{{t.text}}">每日任务</text>
+          <image class="tile-next-icon" src="{{t.iconChevron}}"></image>
+        </div>
+        <text class="section-title" style="{{t.sub}}">关于</text>
+        <div class="setting-tile" style="{{t.tile}}" onclick="openAbout">
+          <image class="setting-icon" src="{{t.iconUser}}"></image>
+          <text class="setting-title" style="{{t.text}}">关于</text>
+          <image class="tile-next-icon" src="{{t.iconChevron}}"></image>
+        </div>
+        <div class="setting-tile" style="{{t.tile}}" onclick="showCopyright">
+          <image class="setting-icon" src="{{t.iconInfo}}"></image>
+          <text class="setting-title" style="{{t.text}}">版权声明</text>
+          <image class="tile-next-icon" src="{{t.iconChevron}}"></image>
+        </div>
+        <div class="setting-tile" style="{{t.tile}}">
+          <image class="setting-icon" src="{{t.iconSettings}}"></image>
+          <text class="setting-title" style="{{t.text}}">版本</text>
+          <text class="setting-value" style="{{t.sub}}">0.2.0</text>
+        </div>
+        <div class="setting-tile" style="{{t.tile}}">
+          <image class="setting-icon" src="{{t.iconInfo}}"></image>
+          <text class="setting-title" style="{{t.text}}">数据说明</text>
+          <text class="setting-value" style="{{t.sub}}">虚构演示</text>
+        </div>
+        <text class="settings-note" style="{{t.muted}}">蓝桥工作室 · 招新评测基底</text>
+      </scroll>
+    </div>
+  </div>
+</template>
+<script>
+import router from "@system.router"
+import prompt from "@system.prompt"
+import { applyTheme, DEFAULT_STYLES } from "../../common/theme.js"
+export default {
+  private: {
+    t: DEFAULT_STYLES,
+    themeName: "午夜黑金"
+  },
+  onInit() {
+    this.refreshTheme()
+  },
+  onShow() {
+    this.refreshTheme()
+  },
+  refreshTheme() {
+    applyTheme(this, (state, styles) => {
+      this.themeName = styles.name
+    })
+  },
+  openGift() {
+    router.push({ uri: "/pages/gift" })
+  },
+  openTheme() {
+    router.push({ uri: "/pages/theme" })
+  },
+  openTasks() {
+    router.push({ uri: "/pages/tasks" })
+  },
+  openAbout() {
+    router.push({ uri: "/pages/about" })
+  },
+  showCopyright() {
+    prompt.showToast({
+      message: "© 蓝桥工作室 · 仅供招新评测使用",
+      duration: 2500
+    })
+  },
+  back() {
+    router.back()
+  }
+}
+</script>
+<style>
+@import "../../common/theme.css";
+.settings-list { width: 336px; height: 408px; padding: 0 8px 24px 8px; flex-direction: column; }
+.setting-tile { width: 320px; height: 80px; margin-bottom: 7px; padding: 12px 16px; border-width: 1px; border-radius: 24px; flex-direction: row; align-items: center; }
+.setting-icon { width: 50px; height: 50px; margin-right: 14px; object-fit: contain; }
+.setting-title { flex: 1; font-size: 28px; font-weight: bold; lines: 1; }
+.setting-value { margin-right: 6px; font-size: 22px; font-weight: bold; lines: 1; }
+.tile-next-icon { width: 22px; height: 28px; object-fit: contain; opacity: 0.72; }
+.settings-note { width: 320px; height: 30px; margin-top: 14px; font-size: 15px; line-height: 30px; text-align: center; }
+</style>

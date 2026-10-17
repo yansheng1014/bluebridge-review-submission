@@ -1,0 +1,149 @@
+<template>
+  <div class="page" style="{{t.page}}">
+    <div class="topbar" style="{{t.topbar}}">
+      <div class="back-hit" onclick="back">
+        <image class="back-icon" src="{{t.iconBack}}"></image>
+      </div>
+      <div class="top-stock-logo {{stockAvatarClass}}">
+        <text class="top-stock-mark" style="{{t.text}}">{{stockMark}}</text>
+      </div>
+      <text class="top-title" style="{{t.text}}">{{name}}</text>
+    </div>
+    <div class="content-layer flow-content-layer" style="{{t.page}}">
+      <scroll class="scroll-body" scroll-y="true" scroll-x="false" style="{{t.page}}">
+        <div class="price-row">
+          <div class="detail-price-box">
+            <text class="detail-price" style="{{t.text}}">{{priceText}}</text>
+          </div>
+          <div class="detail-change-box">
+            <text class="detail-change {{changeClass}}">{{changeText}}</text>
+          </div>
+        </div>
+        <div class="trend-chart-box" style="{{t.border}}">
+          <chart class="trend-chart" type="line" options="{{lineOptions}}" datasets="{{lineData}}" show="{{chartReady}}"></chart>
+        </div>
+        <div class="holding-row" style="{{t.border}}">
+          <div class="holding-cell">
+            <text class="holding-label" style="{{t.sub}}">持仓</text>
+            <text class="holding-value" style="{{t.text}}">{{sharesText}}</text>
+          </div>
+          <div class="holding-cell">
+            <text class="holding-label" style="{{t.sub}}">成本</text>
+            <text class="holding-value" style="{{t.text}}">{{averageText}}</text>
+          </div>
+          <div class="holding-cell holding-cell-last">
+            <text class="holding-label holding-label-right" style="{{t.sub}}">盈亏</text>
+            <text class="holding-value holding-value-right {{profitClass}}">{{profitText}}</text>
+          </div>
+        </div>
+        <div class="trade-note" style="{{t.card}}">
+          <text class="trade-note-title" style="{{t.accent}}">静态演示数据</text>
+          <text class="trade-note-text" style="{{t.sub}}">本工程不提供买入 / 卖出功能。</text>
+          <text class="trade-note-text" style="{{t.sub}}">行情与持仓均为固定展示数据。</text>
+        </div>
+      </scroll>
+    </div>
+  </div>
+</template>
+<script>
+import router from "@system.router"
+import {
+  STOCKS,
+  getStockById,
+  formatMoney,
+  formatPercent,
+  formatSignedMoney,
+  stockHoldingProfit,
+  trendClass
+} from "../../data/reviewStatic.js"
+import { applyTheme, DEFAULT_STYLES } from "../../common/theme.js"
+export default {
+  protected: {
+    stockId: ""
+  },
+  private: {
+    t: DEFAULT_STYLES,
+    name: "",
+    stockMark: "蓝",
+    stockAvatarClass: "avatar-blue",
+    priceText: "",
+    changeText: "",
+    changeClass: "neutral",
+    sharesText: "0 股",
+    averageText: "—",
+    profitText: "¥0",
+    profitClass: "neutral",
+    lineData: [],
+    lineOptions: {},
+    chartReady: false
+  },
+  onInit() {
+    applyTheme(this)
+    const stock = getStockById(this.stockId) || STOCKS[0]
+    const shares = stock.holding.shares
+    const profit = stockHoldingProfit(stock)
+    this.name = stock.name
+    this.stockMark = stock.mark
+    this.stockAvatarClass = stock.avatarTone
+    this.priceText = formatMoney(stock.price)
+    this.changeText = formatPercent(stock.change)
+    this.changeClass = trendClass(stock.change)
+    this.sharesText = shares + " 股"
+    this.averageText = shares > 0 ? formatMoney(stock.holding.averageCost) : "—"
+    this.profitText = shares > 0 ? formatSignedMoney(profit) : "¥0"
+    this.profitClass = shares > 0 ? trendClass(profit) : "neutral"
+    this.buildChart(stock)
+  },
+  buildChart(stock) {
+    const chartHistory = stock.history.slice(-7).map(function (price) {
+      return price * 100
+    })
+    const historyMin = Math.min.apply(null, chartHistory)
+    const historyMax = Math.max.apply(null, chartHistory)
+    const padding = Math.max(100, Math.ceil((historyMax - historyMin) * 0.18))
+    this.lineData = [{
+      strokeColor: stock.change >= 0 ? "#ff453a" : "#30d158",
+      data: chartHistory
+    }]
+    this.lineOptions = {
+      xAxis: { min: 0, max: chartHistory.length, display: false, axisTick: chartHistory.length },
+      yAxis: { min: Math.max(0, historyMin - padding), max: historyMax + padding, display: false, axisTick: 5 },
+      series: { lineStyle: { width: "3px" } }
+    }
+    this.chartReady = true
+  },
+  onShow() {
+    applyTheme(this)
+  },
+  back() {
+    router.back()
+  }
+}
+</script>
+<style>
+@import "../../common/theme.css";
+.top-stock-logo { width: 48px; height: 48px; margin-right: 10px; border-radius: 15px; align-items: center; justify-content: center; }
+.top-stock-mark { width: 48px; height: 48px; color: #ffffff; font-size: 29px; line-height: 48px; font-weight: bold; text-align: center; }
+.avatar-blue { background-color: #102b49; }
+.avatar-gold { background-color: #332b08; }
+.avatar-green { background-color: #10351e; }
+.avatar-red { background-color: #4a171b; }
+.avatar-purple { background-color: #2d1b4e; }
+.avatar-gray { background-color: #343438; }
+.price-row { width: 320px; height: 74px; padding: 6px; flex-direction: row; align-items: center; }
+.detail-price-box { width: 220px; height: 62px; justify-content: center; }
+.detail-change-box { width: 88px; height: 62px; align-items: flex-end; justify-content: center; }
+.detail-price { width: 220px; height: 54px; color: #ffffff; font-size: 43px; line-height: 54px; font-weight: bold; lines: 1; text-overflow: ellipsis; }
+.detail-change { width: 88px; height: 38px; font-size: 26px; line-height: 38px; font-weight: bold; text-align: right; lines: 1; text-overflow: ellipsis; }
+.trend-chart-box { width: 320px; height: 142px; border-bottom-width: 1px; border-bottom-color: #2b2b2b; }
+.trend-chart { width: 320px; height: 141px; }
+.holding-row { width: 320px; height: 76px; padding: 8px 6px; flex-direction: row; align-items: center; border-bottom-width: 1px; border-bottom-color: #2b2b2b; }
+.holding-cell { width: 102px; height: 60px; flex-direction: column; justify-content: center; }
+.holding-cell-last { width: 104px; align-items: flex-end; }
+.holding-label { width: 102px; height: 28px; color: #a0a0a0; font-size: 21px; line-height: 28px; lines: 1; }
+.holding-label-right,.holding-value-right { text-align: right; }
+.holding-value { width: 102px; height: 28px; color: #ffffff; font-size: 21px; line-height: 28px; font-weight: bold; lines: 1; text-overflow: ellipsis; }
+.trade-note { width: 320px; height: 104px; margin-top: 10px; padding: 12px 14px; border-radius: 22px; background-color: #171717; flex-direction: column; }
+.trade-note-title { width: 292px; height: 28px; color: #ffd400; font-size: 20px; line-height: 28px; font-weight: bold; lines: 1; }
+.trade-note-text { width: 292px; height: 24px; margin-top: 4px; color: #a0a0a0; font-size: 17px; line-height: 24px; lines: 1; }
+</style>

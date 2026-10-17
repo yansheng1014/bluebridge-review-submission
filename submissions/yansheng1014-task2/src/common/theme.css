@@ -1,0 +1,337 @@
+.page {
+  width: 336px;
+  height: 480px;
+  flex-direction: column;
+  background-color: #000000;
+}
+
+.content-layer {
+  width: 336px;
+  height: 408px;
+  margin-top: 72px;
+  flex-direction: column;
+  background-color: #000000;
+}
+
+.flow-content-layer {
+  margin-top: 0;
+}
+
+.topbar {
+  width: 336px;
+  height: 72px;
+  flex-shrink: 0;
+  padding-left: 8px;
+  padding-right: 8px;
+  flex-direction: row;
+  align-items: center;
+  background-color: #000000;
+}
+
+.back-hit,
+.icon-hit {
+  width: 64px;
+  height: 64px;
+  justify-content: center;
+  align-items: center;
+}
+
+.back-icon,
+.action-icon {
+  width: 38px;
+  height: 38px;
+  object-fit: contain;
+}
+
+.top-title {
+  flex: 1;
+  color: #ffffff;
+  font-size: 34px;
+  font-weight: bold;
+  lines: 1;
+  text-overflow: ellipsis;
+}
+
+.top-meta {
+  color: #a0a0a0;
+  font-size: 22px;
+  font-weight: bold;
+}
+
+.scroll-body,
+.list-body {
+  width: 336px;
+  height: 408px;
+  padding-left: 8px;
+  padding-right: 8px;
+  padding-bottom: 24px;
+  flex-direction: column;
+  background-color: #000000;
+}
+
+.full-row {
+  width: 100%;
+  min-height: 104px;
+  padding: 12px 6px;
+  flex-direction: row;
+  align-items: center;
+  background-color: #000000;
+  border-bottom-width: 1px;
+  border-bottom-color: #2b2b2b;
+}
+
+.row-main {
+  flex: 1;
+  flex-direction: column;
+}
+
+.row-title {
+  color: #ffffff;
+  font-size: 27px;
+  font-weight: bold;
+  lines: 1;
+  text-overflow: ellipsis;
+}
+
+.row-sub {
+  margin-top: 3px;
+  color: #a0a0a0;
+  font-size: 20px;
+  lines: 1;
+  text-overflow: ellipsis;
+}
+
+.row-value {
+  color: #ffffff;
+  font-size: 27px;
+  font-weight: bold;
+}
+
+.section-title {
+  width: 100%;
+  padding: 16px 6px 8px 6px;
+  color: #a0a0a0;
+  font-size: 24px;
+  font-weight: bold;
+}
+
+.metric {
+  width: 100%;
+  min-height: 86px;
+  padding: 8px 6px 12px 6px;
+  flex-direction: column;
+  justify-content: center;
+  border-bottom-width: 1px;
+  border-bottom-color: #2b2b2b;
+}
+
+.metric-label {
+  color: #a0a0a0;
+  font-size: 21px;
+}
+
+.metric-value {
+  margin-top: 2px;
+  color: #ffffff;
+  font-size: 36px;
+  font-weight: bold;
+}
+
+.action-btn {
+  width: 320px;
+  height: 76px;
+  margin-top: 10px;
+  border-width: 2px;
+  border-radius: 28px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+}
+
+.action-btn-icon {
+  width: 34px;
+  height: 34px;
+  margin-right: 10px;
+  object-fit: contain;
+}
+
+.action-btn-label {
+  color: #f5f5f7;
+  font-size: 27px;
+  font-weight: bold;
+  lines: 1;
+}
+
+.action-label-dark {
+  color: #050505;
+}
+
+.action-label-muted {
+  color: #8e8e93;
+}
+
+.action-label-completed {
+  color: #f2f2f7;
+}
+
+.primary-action {
+  border-color: #ffd400;
+  background-color: #ffd400;
+}
+
+.secondary-action {
+  border-color: #2c2c2e;
+  background-color: #1c1c1e;
+}
+
+.completed-action {
+  border-color: #6c6c70;
+  background-color: #48484c;
+}
+
+.danger-action {
+  border-color: #ff453a;
+  background-color: #ff3b30;
+}
+
+.success-action {
+  border-color: #30d158;
+  background-color: #30d158;
+}
+
+.compact-action {
+  width: 296px;
+  height: 68px;
+  margin-top: 6px;
+  border-radius: 25px;
+}
+
+.small-action {
+  height: 56px;
+  margin-top: 0;
+  border-radius: 20px;
+}
+
+.small-action-icon {
+  width: 24px;
+  height: 24px;
+  margin-right: 5px;
+  object-fit: contain;
+}
+
+.small-action-label {
+  color: #f5f5f7;
+  font-size: 21px;
+  font-weight: bold;
+  lines: 1;
+}
+
+.inline-error {
+  width: 100%;
+  min-height: 26px;
+  padding: 4px 6px;
+  color: #ff453a;
+  font-size: 20px;
+}
+
+.green { color: #30d158; }
+.red { color: #ff453a; }
+.neutral { color: #a0a0a0; }
+.yellow { color: #ffd400; }
+.blue { color: #0a84ff; }
+
+.spacer { flex: 1; }
+
+.row {
+  width: 100%;
+  flex-direction: row;
+  align-items: center;
+}
+
+.divider {
+  width: 100%;
+  height: 1px;
+  background-color: #2b2b2b;
+}
+
+/* ------------------------------------------------------------------
+ * 新增功能共用骨架（只放几何/排版，颜色由页面绑定主题令牌 t.*）
+ * 命名约定：theme.css 只负责布局，颜色走 inline style 令牌，保证主题可切换。
+ * ------------------------------------------------------------------ */
+
+.screen-body {
+  width: 336px;
+  height: 408px;
+  padding: 8px;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.card {
+  width: 320px;
+  flex-direction: column;
+  border-radius: 22px;
+  flex-shrink: 0;
+}
+
+.card-row {
+  width: 320px;
+  flex-direction: row;
+  align-items: center;
+  border-radius: 22px;
+  flex-shrink: 0;
+}
+
+.tag {
+  height: 34px;
+  padding-left: 12px;
+  padding-right: 12px;
+  border-radius: 17px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.tag-text {
+  font-size: 17px;
+  font-weight: bold;
+  lines: 1;
+}
+
+.progress-track {
+  height: 8px;
+  border-radius: 4px;
+  flex-direction: row;
+  flex-shrink: 0;
+}
+
+.progress-fill {
+  height: 8px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.btn {
+  height: 64px;
+  border-radius: 24px;
+  border-width: 1px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.btn-text {
+  font-size: 24px;
+  font-weight: bold;
+  lines: 1;
+}
+
+.section-caption {
+  width: 100%;
+  padding: 10px 6px 6px 6px;
+  font-size: 18px;
+  font-weight: bold;
+  lines: 1;
+}

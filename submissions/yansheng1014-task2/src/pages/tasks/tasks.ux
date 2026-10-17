@@ -1,0 +1,512 @@
+<template>
+  <div class="page" style="{{t.page}}">
+    <div class="topbar" style="{{t.topbar}}">
+      <div class="back-hit" onclick="back">
+        <image class="back-icon" src="{{t.iconBack}}"></image>
+      </div>
+      <text class="top-title" style="{{t.text}}">每日任务</text>
+      <text class="top-meta" style="{{t.sub}}">第 12 日</text>
+    </div>
+    <div class="content-layer flow-content-layer" style="{{t.page}}">
+      <div class="screen-body">
+        <!-- 进度卡 320×112 -->
+        <div class="progress-card card" style="{{t.card}}">
+          <div class="progress-head">
+            <text class="progress-label progress-label-grow" style="{{t.sub}}">今日进度</text>
+            <text class="progress-label" style="{{t.sub}}">待领取 {{waitingText}}</text>
+          </div>
+          <text class="progress-num" style="{{t.text}}">{{done}}/5</text>
+          <div class="progress-track big-track" style="{{t.line}}">
+            <div class="progress-fill" style="{{fillStyle}}"></div>
+          </div>
+        </div>
+
+        <!-- 状态 tab 320×44 -->
+        <div class="tab-bar" style="{{t.card}}">
+          <div class="tab-item" for="{{tabs}}" tid="key" onclick="switchTab($idx)">
+            <text class="tab-label" style="{{$item.labelStyle}}">{{$item.title}} {{$item.count}}</text>
+            <div class="tab-ind" style="{{$item.indStyle}}"></div>
+          </div>
+        </div>
+
+        <!-- 任务列表 320×214，行 320×92 -->
+        <scroll class="task-scroll" scroll-y="true" scroll-x="false" style="{{t.page}}">
+          <div class="empty-card card" if="{{showEmpty}}" style="{{t.card}}">
+            <image class="empty-icon" src="{{t.iconCheck}}"></image>
+            <text class="empty-title" style="{{t.text}}">今日可领取已清空</text>
+            <text class="empty-sub" style="{{t.sub}}">明天再来看看</text>
+          </div>
+          <div class="task-row {{$item.pressCls}}" for="{{filtered}}" tid="id" style="{{t.card}}">
+            <div class="task-icon" style="{{t.tile}}">
+              <image class="task-icon-img" src="{{$item.icon}}"></image>
+            </div>
+            <div class="task-main">
+              <text class="task-title" style="{{t.text}}">{{$item.title}}</text>
+              <text class="task-sub" style="{{t.sub}}">{{$item.subText}}</text>
+              <div class="task-trackrow" show="{{$item.isDoing}}">
+                <div class="progress-track mini-track-full" style="{{t.line}}">
+                  <div class="progress-fill mini-fill" style="{{$item.fillStyle}}"></div>
+                </div>
+              </div>
+            </div>
+            <div class="claim-btn {{$item.btnCls}}" show="{{$item.isClaimable}}" style="{{t.accentBg}}" onclick="claim($idx)">
+              <text class="claim-btn-text" style="{{t.onAccent}}">领取</text>
+            </div>
+            <div class="claim-tag" show="{{$item.isClaimed}}" style="{{t.tile}}">
+              <image class="claim-tag-icon" src="{{t.iconCheck}}"></image>
+              <text class="claim-tag-text" style="{{t.muted}}">已领取</text>
+            </div>
+          </div>
+        </scroll>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import router from "@system.router"
+import prompt from "@system.prompt"
+import vibrator from "@system.vibrator"
+import { applyTheme, DEFAULT_STYLES } from "../../common/theme.js"
+
+// 静态任务数据：签到进行中、浏览行情/模拟交易可领取、查看持仓已领取、添加自选股进行中
+const TASK_SEED = [
+  { id: 1, title: "签到", reward: "金币 ×200", iconKey: "iconCheck", state: "doing", cur: 3, total: 5 },
+  { id: 2, title: "浏览行情", reward: "金币 ×300", iconKey: "iconCoins", state: "claimable", cur: 1, total: 1 },
+  { id: 3, title: "模拟交易", reward: "金币 ×500", iconKey: "iconStar", state: "claimable", cur: 3, total: 3 },
+  { id: 4, title: "查看持仓", reward: "徽章 ×1", iconKey: "iconTrophy", state: "claimed", cur: 1, total: 1 },
+  { id: 5, title: "添加自选股", reward: "金币 ×100", iconKey: "iconFlame", state: "doing", cur: 0, total: 1 }
+]
+
+export default {
+  private: {
+    t: DEFAULT_STYLES,
+    activeTab: 0,
+    busy: false,
+    done: 3,
+    waitingText: "2",
+    donePct: 60,
+    fillStyle: {},
+    tabAll: 5,
+    tabClaimable: 2,
+    tabClaimed: 1,
+    tabs: [],
+    items: [],
+    filtered: [],
+    showEmpty: false,
+    pressTimer: null,
+    busyTimer: null
+  },
+  onInit() {
+    this.resetTasks()
+    this.buildView(DEFAULT_STYLES)
+    this.refreshTheme()
+  },
+  onShow() {
+    this.refreshTheme()
+  },
+  onDestroy() {
+    if (this.pressTimer) {
+      clearTimeout(this.pressTimer)
+      this.pressTimer = null
+    }
+    if (this.busyTimer) {
+      clearTimeout(this.busyTimer)
+      this.busyTimer = null
+    }
+  },
+  resetTasks() {
+    const next = []
+    for (let i = 0; i < TASK_SEED.length; i++) {
+      const seed = TASK_SEED[i]
+      next.push({
+        id: seed.id,
+        title: seed.title,
+        reward: seed.reward,
+        iconKey: seed.iconKey,
+        state: seed.state,
+        cur: seed.cur,
+        total: seed.total,
+        pressing: false
+      })
+    }
+    this.items = next
+  },
+  refreshTheme() {
+    applyTheme(this, (state, styles) => {
+      this.buildView(styles)
+    })
+  },
+  // 由 items 的状态 + 当前主题派生出渲染列表、计数与进度
+  buildView(styles) {
+    const s = styles || this.t
+    const tokens = s && s.tokens ? s.tokens : {}
+    const accent = tokens.accent || DEFAULT_STYLES.tokens.accent
+    const next = []
+    let claimed = 0
+    let claimable = 0
+    for (let i = 0; i < this.items.length; i++) {
+      const it = this.items[i]
+      const total = it.total > 0 ? it.total : 1
+      const cur = it.cur > 0 ? it.cur : 0
+      const pct = Math.round(cur / total * 100)
+      const isDoing = it.state === "doing"
+      const isClaimable = it.state === "claimable"
+      const isClaimed = it.state === "claimed"
+      if (isClaimable) claimable += 1
+      if (isClaimed) claimed += 1
+      next.push({
+        id: it.id,
+        title: it.title,
+        reward: it.reward,
+        iconKey: it.iconKey,
+        state: it.state,
+        cur: cur,
+        total: total,
+        pressing: !!it.pressing,
+        isDoing: isDoing,
+        isClaimable: isClaimable,
+        isClaimed: isClaimed,
+        pressCls: it.pressing ? "task-flash" : "",
+        btnCls: isClaimable && it.pressing ? "claim-btn-pulse" : "",
+        icon: s[it.iconKey] || "",
+        progressText: "进行中 " + cur + "/" + total,
+        countText: cur + "/" + total,
+        subText: it.reward,
+        fillStyle: { backgroundColor: accent, width: pct + "%" }
+      })
+    }
+    this.items = next
+    this.tabAll = next.length
+    this.tabClaimable = claimable
+    this.tabClaimed = claimed
+    // 今日进度 = 已完成任务数（已领取 + 可领取）；进行中任务不算完成，数字不会自相矛盾。
+    this.done = claimed + claimable
+    this.waitingText = claimable + "/5"
+    this.donePct = Math.round(this.done / 5 * 100)
+    this.fillStyle = { backgroundColor: accent, width: this.donePct + "%" }
+    this.updateTabs(s)
+    this.applyFilter()
+  },
+  // tab 状态样式预计算，避免模板里做三元判断
+  updateTabs(styles) {
+    const s = styles || this.t
+    const titles = ["全部", "可领取", "已完成"]
+    const counts = [this.tabAll, this.tabClaimable, this.tabClaimed]
+    const next = []
+    for (let i = 0; i < titles.length; i++) {
+      const active = this.activeTab === i
+      next.push({
+        key: i,
+        title: titles[i],
+        count: counts[i],
+        labelStyle: active ? s.accent : s.sub,
+        indStyle: active ? s.accentBg : s.card
+      })
+    }
+    this.tabs = next
+  },
+  applyFilter() {
+    const list = []
+    for (let i = 0; i < this.items.length; i++) {
+      const it = this.items[i]
+      if (this.activeTab === 0) {
+        list.push(it)
+      } else if (this.activeTab === 1 && it.state === "claimable") {
+        list.push(it)
+      } else if (this.activeTab === 2 && it.state === "claimed") {
+        list.push(it)
+      }
+    }
+    this.filtered = list
+    this.showEmpty = this.activeTab === 1 && list.length === 0
+  },
+  switchTab(idx) {
+    if (this.activeTab === idx) return
+    this.activeTab = idx
+    this.updateTabs(this.t)
+    this.applyFilter()
+    this.vibrate()
+  },
+  claim(idx) {
+    if (this.busy) return
+    const item = this.filtered[idx]
+    if (!item || !item.isClaimable) return
+    this.busy = true
+    this.vibrate()
+    this.markPressing(item.id)
+    prompt.showToast({ message: "已领取 " + item.reward, duration: 1500 })
+    this.pressTimer = setTimeout(() => {
+      this.pressTimer = null
+      this.commitClaim(item.id)
+    }, 320)
+    this.busyTimer = setTimeout(() => {
+      this.busyTimer = null
+      this.busy = false
+    }, 600)
+  },
+  markPressing(id) {
+    const next = []
+    for (let i = 0; i < this.items.length; i++) {
+      const it = this.items[i]
+      next.push(Object.assign({}, it, { pressing: it.id === id }))
+    }
+    this.items = next
+    this.buildView()
+  },
+  commitClaim(id) {
+    const next = []
+    for (let i = 0; i < this.items.length; i++) {
+      const it = this.items[i]
+      next.push(Object.assign({}, it, { pressing: false, state: it.id === id ? "claimed" : it.state }))
+    }
+    this.items = next
+    this.vibrate()
+    this.buildView()
+  },
+  vibrate() {
+    try {
+      vibrator.vibrate({ mode: "short" })
+    } catch (e) {
+      // 部分设备和节电模式下马达不可用，静默忽略，不影响流程。
+    }
+  },
+  back() {
+    router.back()
+  }
+}
+</script>
+
+<style>
+@import "../../common/theme.css";
+
+/* 内容区：顶栏 72 + 内容 408 = 480；左右各 8，卡片 320 */
+
+/* 进度卡 320×112（.card 提供宽 320 / 圆角 22 / 竖向 flex） */
+.progress-card {
+  height: 116px;
+  padding: 10px 14px;
+  justify-content: center;
+}
+.progress-head {
+  width: 292px;
+  height: 20px;
+  flex-direction: row;
+  align-items: center;
+}
+.progress-label {
+  font-size: 19px;
+  line-height: 20px;
+  lines: 1;
+}
+.progress-label-grow {
+  flex: 1;
+}
+.progress-num {
+  width: 292px;
+  height: 46px;
+  line-height: 46px;
+  font-size: 42px;
+  font-weight: bold;
+}
+.big-track {
+  width: 292px;
+  height: 10px;
+  margin-top: 8px;
+}
+
+/* 状态 tab 320×44：选中文字 t.accent + 3px 指示条 t.accentBg */
+.tab-bar {
+  width: 320px;
+  height: 46px;
+  margin-top: 8px;
+  border-radius: 22px;
+  flex-direction: row;
+  align-items: center;
+  flex-shrink: 0;
+}
+.tab-item {
+  flex: 1;
+  height: 46px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.tab-label {
+  font-size: 19px;
+  line-height: 26px;
+  lines: 1;
+}
+.tab-ind {
+  width: 44px;
+  height: 3px;
+  margin-top: 2px;
+  border-radius: 2px;
+}
+
+/* 列表滚动区 320×214 */
+.task-scroll {
+  width: 320px;
+  height: 208px;
+  margin-top: 8px;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+.task-row {
+  width: 320px;
+  height: 104px;
+  margin-bottom: 8px;
+  padding: 10px 12px;
+  flex-direction: row;
+  align-items: center;
+  border-radius: 22px;
+  flex-shrink: 0;
+}
+.task-icon {
+  width: 56px;
+  height: 56px;
+  margin-right: 10px;
+  border-width: 1px;
+  border-radius: 18px;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.task-icon-img {
+  width: 38px;
+  height: 38px;
+  object-fit: contain;
+}
+.task-main {
+  width: 136px;
+  flex-shrink: 0;
+  flex-direction: column;
+  justify-content: center;
+}
+.task-title {
+  width: 136px;
+  font-size: 28px;
+  font-weight: bold;
+  line-height: 34px;
+  lines: 1;
+  text-overflow: ellipsis;
+}
+.task-sub {
+  width: 136px;
+  font-size: 19px;
+  line-height: 26px;
+  lines: 1;
+  text-overflow: ellipsis;
+}
+.task-trackrow {
+  width: 136px;
+  height: 24px;
+  margin-top: 4px;
+  flex-direction: row;
+  align-items: center;
+}
+.mini-track-full {
+  width: 136px;
+  height: 8px;
+  border-radius: 4px;
+}
+.task-count {
+  width: 40px;
+  font-size: 19px;
+  font-weight: bold;
+  text-align: right;
+  lines: 1;
+}
+.mini-fill {
+  height: 6px;
+  border-radius: 3px;
+}
+
+/* 领取按钮 72×40 / 已领取标签 */
+.claim-btn {
+  width: 80px;
+  height: 46px;
+  margin-left: 8px;
+  border-radius: 22px;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.claim-btn-text {
+  font-size: 24px;
+  font-weight: bold;
+  lines: 1;
+}
+.claim-tag {
+  width: 86px;
+  height: 36px;
+  margin-left: 8px;
+  border-width: 1px;
+  border-radius: 15px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.claim-tag-icon {
+  width: 18px;
+  height: 18px;
+  margin-right: 4px;
+  object-fit: contain;
+}
+.claim-tag-text {
+  font-size: 19px;
+  lines: 1;
+}
+
+/* 空状态卡 320×180（可领取 tab 全部领完） */
+.empty-card {
+  width: 320px;
+  height: 190px;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.empty-icon {
+  width: 56px;
+  height: 56px;
+  margin-bottom: 10px;
+  object-fit: contain;
+}
+.empty-title {
+  font-size: 24px;
+  font-weight: bold;
+  line-height: 30px;
+  lines: 1;
+}
+.empty-sub {
+  margin-top: 4px;
+  font-size: 17px;
+  line-height: 24px;
+  lines: 1;
+}
+
+/* 领取反馈：按钮脉冲 + 行高亮，显式写 0%/100%，单次 320ms */
+@keyframes claim-pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(0.88); }
+  100% { transform: scale(1); }
+}
+@keyframes task-flash {
+  0% { opacity: 1; }
+  50% { opacity: 0.55; }
+  100% { opacity: 1; }
+}
+.claim-btn-pulse {
+  animation-name: claim-pulse;
+  animation-duration: 320ms;
+  animation-timing-function: ease-out;
+  animation-iteration-count: 1;
+}
+.task-flash {
+  animation-name: task-flash;
+  animation-duration: 320ms;
+  animation-timing-function: ease-out;
+  animation-iteration-count: 1;
+}
+</style>
