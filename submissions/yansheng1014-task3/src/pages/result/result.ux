@@ -7,13 +7,19 @@
         <text class="t-display c-on-surface w-content tc mt-1">{{scoreText}}</text>
 
         <div class="row center mt-2">
+          <text class="t-label c-primary">{{ratingLine}}</text>
+        </div>
+
+        <div class="row center mt-2">
           <text class="t-label c-primary">{{bestLine}}</text>
           <div if="{{isRecord}}" class="row center bg-secondary-container r-pill ml-3 pt-1 pb-1 pl-3 pr-3">
             <text class="t-tag c-on-secondary-container">新纪录</text>
           </div>
         </div>
 
-        <div class="btn bg-primary w-button-width h-button-primary-height mt-4 {{replayClass}}"
+        <text class="t-caption c-on-surface-variant w-content tc mt-2">{{statLine}}</text>
+
+        <div class="btn bg-primary w-button-width h-button-primary-height mt-3 {{replayClass}}"
              ontouchstart="replayIn" ontouchend="replayOut" onclick="replay">
           <text class="t-button c-on-primary">再玩一局</text>
         </div>
@@ -48,6 +54,15 @@ import { submitScore } from "../../common/store.js"
 
 const DEFAULT_DURATION = 30
 
+// 评级阈值按 30 秒单人节奏定：S 需要连击稳定 + 少打炸弹。
+export function ratingOf(score) {
+  if (score >= 180) return "S"
+  if (score >= 120) return "A"
+  if (score >= 70) return "B"
+  if (score >= 30) return "C"
+  return "D"
+}
+
 // 路由参数统一转成 String，这里 parseInt 兜底：NaN/负数 → fallback。
 function toInt (value, fallback) {
   const n = parseInt(value, 10)
@@ -58,7 +73,13 @@ export default {
   protected: {
     // 路由参数（由 game 页 router.replace 传入，全部为 String）
     score: "0",
+    hits: "0",
+    bombs: "0",
+    clocks: "0",
+    maxCombo: "0",
     duration: "30",
+    ratingLine: "评级 —",
+    statLine: "",
     // 视图状态
     scoreText: "0",
     bestLine: "最高分 —",
@@ -70,8 +91,14 @@ export default {
 
   onInit () {
     const score = toInt(this.score, 0)
+    const hits = toInt(this.hits, 0)
+    const bombs = toInt(this.bombs, 0)
+    const clocks = toInt(this.clocks, 0)
+    const maxCombo = toInt(this.maxCombo, 0)
     const durationSec = toInt(this.duration, DEFAULT_DURATION)
     this.scoreText = String(score)
+    this.ratingLine = "评级 " + ratingOf(score)
+    this.statLine = "命中 " + hits + " · 连击 " + maxCombo + (bombs > 0 ? " · 炸弹 " + bombs : "") + (clocks > 0 ? " · 加时 " + clocks : "")
     this.playDuration = String(durationSec > 0 ? durationSec : DEFAULT_DURATION)
 
     // 权威最高分/新纪录由 store 决定（写入更高分才更新）。

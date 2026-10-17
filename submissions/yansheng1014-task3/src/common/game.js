@@ -17,8 +17,18 @@ export const RULES = {
   BASE_POINTS: 10,
   COMBO_STEP: 2,
   COMBO_CAP: 5,
-  GOLDEN_RATE: 0.18,
+  GOLDEN_RATE: 0.16,
   GOLDEN_MULTIPLIER: 3,
+  // 炸弹鼠：打了要扣分并断连击，逼玩家“看清再点”，而不是无脑轮流点格子。
+  BOMB_RATE: 0.16,
+  BOMB_PENALTY: 12,
+  // 加时鼠：稀有，打中 +2 秒并 +5 分，最后几秒的救命稻草。
+  CLOCK_RATE: 0.06,
+  CLOCK_BONUS_MS: 2000,
+  CLOCK_POINTS: 5,
+  // 狂暴段：最后 10 秒同时最多 3 只，节奏明显加快。
+  RAGE_LAST_MS: 10000,
+  MAX_ACTIVE_RAGE: 3,
   // 连击窗口：两次命中间隔 ≤ 2s 就继续累积。漏打不再瞬间清空连击，
   // 否则同时有 2 只地鼠时连击几乎不可达（手环上尤其不公平）。
   COMBO_WINDOW_MS: 2000,
@@ -61,7 +71,7 @@ function clamp(value, min, max) {
 function emptyCells() {
   const cells = []
   for (let i = 0; i < BOARD.size; i += 1) {
-    cells.push({ mole: false, golden: false, expireAt: 0 })
+    cells.push({ mole: false, golden: false, kind: "mole", expireAt: 0 })
   }
   return cells
 }
@@ -89,6 +99,8 @@ export function createGame(options) {
         hits: 0,
         misses: 0,
         goldenHits: 0,
+        bombs: 0,
+        clocks: 0,
         escaped: 0,
         spawned: 0,
         nextSpawnAt: time + RULES.FIRST_SPAWN_MS,
@@ -133,9 +145,10 @@ export function createGame(options) {
 
       let spawned = 0
       let guard = 0
+      const maxActive = state.timeLeftMs <= RULES.RAGE_LAST_MS ? RULES.MAX_ACTIVE_RAGE : RULES.MAX_ACTIVE
       while (time >= state.nextSpawnAt && guard < 4) {
         const elapsed = durationMs - state.timeLeftMs
-        if (countActive(state) < RULES.MAX_ACTIVE) {
+        if (countActive(state) < maxActive) {
           this.spawn(time, elapsed)
           spawned += 1
         }
@@ -165,10 +178,11 @@ export function createGame(options) {
       }
       if (!candidates.length) return -1
       const index = candidates[Math.floor(random() * candidates.length) % candidates.length]
-      const golden = random() < RULES.GOLDEN_RATE
+      const kind = pickKind(random())
       const cell = state.cells[index]
       cell.mole = true
-      cell.golden = golden
+      cell.kind = kind
+      cell.golden = kind === "golden"
       cell.expireAt = time + moleLifeMs(elapsed)
       state.lastSpawnIndex = index
       state.spawned += 1
@@ -183,20 +197,41 @@ export function createGame(options) {
         state.misses += 1
         return { ok: false, points: 0, golden: false, combo: state.combo }
       }
+      const kind = cell.kind || (cell.golden ? "golden" : "mole")
+
+      // 炸弹鼠：扣分 + 断连击（分数不会为负）。
+      if (kind === "bomb") {
+        state.score = Math.max(0, state.score - RULES.BOMB_PENALTY)
+        state.combo = 0
+        state.bombs += 1
+        cell.mole = false
+        cell.kind = "mole"
+        cell.golden = false
+        cell.expireAt = 0
+        return { ok: true, points: -RULES.BOMB_PENALTY, golden: false, kind: kind, combo: 0, now: time }
+      }
+
+      // 加时鼠：+2 秒（不超过本局总时长上限的 1.5 倍，避免无限续命）+5 分，连击照常累积。
+      if (kind === "clock") {
+        const cap = Math.round(durationMs * 1.5)
+        state.timeLeftMs = Math.min(cap, state.timeLeftMs + RULES.CLOCK_BONUS_MS)
+        state.clocks += 1
+      }
+
       const withinWindow = state.lastHitAt > 0 && time - state.lastHitAt <= RULES.COMBO_WINDOW_MS
       state.combo = withinWindow ? state.combo + 1 : 1
       state.lastHitAt = time
       if (state.combo > state.maxCombo) state.maxCombo = state.combo
-      const golden = !!cell.golden
-      const points = pointsFor(state.combo, golden)
+      const golden = kind === "golden"
+      const points = kind === "clock" ? RULES.CLOCK_POINTS : pointsFor(state.combo, golden)
       state.score += points
       state.hits += 1
       if (golden) state.goldenHits += 1
       cell.mole = false
+      cell.kind = "mole"
       cell.golden = false
       cell.expireAt = 0
-      // 命中后没有其它地鼠时，连击保持；由下一次漏打清零。
-      return { ok: true, points: points, golden: golden, combo: state.combo, now: time }
+      return { ok: true, points: points, golden: golden, kind: kind, combo: state.combo, now: time }
     },
     pause: function (now) {
       const time = toNow(now)
@@ -239,6 +274,8 @@ export function createGame(options) {
           hits: 0,
           misses: 0,
           goldenHits: 0,
+          bombs: 0,
+          clocks: 0,
           escaped: 0,
           cells: emptySnapshotCells()
         }
@@ -246,7 +283,7 @@ export function createGame(options) {
       const cells = []
       for (let i = 0; i < state.cells.length; i += 1) {
         const cell = state.cells[i]
-        cells.push({ mole: !!cell.mole, golden: !!cell.golden })
+        cells.push({ mole: !!cell.mole, golden: !!cell.golden, kind: cell.kind || "mole" })
       }
       return {
         phase: this.phase,
@@ -257,6 +294,8 @@ export function createGame(options) {
         hits: state.hits,
         misses: state.misses,
         goldenHits: state.goldenHits,
+        bombs: state.bombs,
+        clocks: state.clocks,
         escaped: state.escaped,
         cells: cells
       }
@@ -265,6 +304,14 @@ export function createGame(options) {
 
   engine.state = null
   return engine
+}
+
+// 目标种类：一次随机决定，概率互斥（clock + golden + bomb < 1，其余是普通鼠）。
+export function pickKind(roll) {
+  if (roll < RULES.CLOCK_RATE) return "clock"
+  if (roll < RULES.CLOCK_RATE + RULES.GOLDEN_RATE) return "golden"
+  if (roll < RULES.CLOCK_RATE + RULES.GOLDEN_RATE + RULES.BOMB_RATE) return "bomb"
+  return "mole"
 }
 
 function countActive(state) {
@@ -279,13 +326,14 @@ function clearMoles(state) {
   for (let i = 0; i < state.cells.length; i += 1) {
     state.cells[i].mole = false
     state.cells[i].golden = false
+    state.cells[i].kind = "mole"
     state.cells[i].expireAt = 0
   }
 }
 
 function emptySnapshotCells() {
   const cells = []
-  for (let i = 0; i < BOARD.size; i += 1) cells.push({ mole: false, golden: false })
+  for (let i = 0; i < BOARD.size; i += 1) cells.push({ mole: false, golden: false, kind: "mole" })
   return cells
 }
 

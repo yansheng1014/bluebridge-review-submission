@@ -305,10 +305,17 @@ export default {
       this.syncFromEngine()
       return
     }
+    // 炸弹：长振动 + 红色闪，和“得分”的短振动明确区分（手感上就能分辨打错）。
+    if (result.kind === "bomb") {
+      this.vibrateLong()
+      this.syncFromEngine()
+      this.flashCell(index, result.kind)
+      return
+    }
     // 先振动再同步视图：把反馈延迟压在 1 帧以内（真机上振动本身有几十毫秒延迟）。
     this.vibrateShort()
     this.syncFromEngine()
-    this.flashCell(index, result.golden)
+    this.flashCell(index, result.kind)
     this.popScore()
   },
 
@@ -397,6 +404,10 @@ export default {
       uri: "/pages/result",
       params: {
         score: snapshot.score || 0,
+        hits: snapshot.hits || 0,
+        bombs: snapshot.bombs || 0,
+        clocks: snapshot.clocks || 0,
+        maxCombo: snapshot.maxCombo || 0,
         duration: durationSeconds
       }
     })
@@ -437,6 +448,14 @@ export default {
       brightness.setKeepScreenOn({ keepScreenOn: on })
     } catch (error) {
       // 设备不支持常亮时静默降级。
+    }
+  },
+
+  vibrateLong() {
+    try {
+      vibrator.vibrate({ mode: "long" })
+    } catch (error) {
+      // 设备不支持振动时静默降级。
     }
   },
 
@@ -491,14 +510,14 @@ export default {
     for (let i = 0; i < 9; i++) {
       const source = cells && cells[i] ? cells[i] : null
       const on = !!(source && source.mole)
-      const golden = !!(source && source.golden)
+      const kind = source && source.kind ? source.kind : (source && source.golden ? "golden" : "mole")
       const previous = this.cellState[i]
-      if (previous && previous.on === on && previous.golden === golden) {
+      if (previous && previous.on === on && previous.kind === kind) {
         continue
       }
-      this.cellState[i] = { on: on, golden: golden }
+      this.cellState[i] = { on: on, kind: kind }
       const current = this.getCell(i)
-      this.setCell(i, on, golden, current ? current.cls : "", this.cellBg[i] || "")
+      this.setCell(i, on, kind, current ? current.cls : "", this.cellBg[i] || "")
     }
   },
 
@@ -519,10 +538,18 @@ export default {
     }
   },
 
-  setCell(index, on, golden, cls, bg) {
+  // 目标种类 → 插画（普通/金/炸弹/加时），页面只做映射，不判断逻辑。
+  artOf(kind) {
+    if (kind === "golden") return ART.moleGold
+    if (kind === "bomb") return ART.bomb
+    if (kind === "clock") return ART.clock
+    return ART.mole
+  },
+
+  setCell(index, on, kind, cls, bg) {
     const base = GRID.styles[index].base
     const style = bg ? base + "background-color:" + bg + ";" : base
-    const value = { on: on, src: golden ? ART.moleGold : ART.mole, cls: cls, style: style }
+    const value = { on: on, src: this.artOf(kind), cls: cls, style: style }
     switch (index) {
       case 0: this.c0 = value; break
       case 1: this.c1 = value; break
@@ -538,11 +565,14 @@ export default {
     }
   },
 
-  flashCell(index, golden) {
-    const state = this.cellState[index] || { on: false, golden: false }
+  flashCell(index, kind) {
+    const state = this.cellState[index] || { on: false, kind: "mole" }
     this.cellBg = this.cellBg || []
-    this.cellBg[index] = golden ? COLORS.gold : COLORS.primaryContainer
-    this.setCell(index, state.on, state.golden, "", this.cellBg[index])
+    if (kind === "bomb") this.cellBg[index] = COLORS.danger
+    else if (kind === "clock") this.cellBg[index] = COLORS.secondary
+    else if (kind === "golden") this.cellBg[index] = COLORS.gold
+    else this.cellBg[index] = COLORS.primaryContainer
+    this.setCell(index, state.on, state.kind || "mole", "", this.cellBg[index])
     if (this.flashTimers[index]) {
       clearTimeout(this.flashTimers[index])
     }
@@ -559,7 +589,7 @@ export default {
     }
     this.cellBg = this.cellBg || []
     this.cellBg[index] = ""
-    this.setCell(index, state.on, state.golden, "", "")
+    this.setCell(index, state.on, state.kind || "mole", "", "")
   }
 }
 </script>

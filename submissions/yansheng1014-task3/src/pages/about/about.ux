@@ -13,15 +13,16 @@
 
         <div class="col shrink-0 mt-4">
           <text class="t-headline c-on-surface">怎么玩</text>
-          <text class="t-body c-on-surface-variant w-content mt-2">30 秒内点击冒头的地鼠，连击越高分越高。</text>
+          <text class="t-body c-on-surface-variant w-content mt-2">30 秒内点掉冒头的地鼠，连击越高分越高；打中炸弹会扣分，打中时钟能加时。</text>
         </div>
 
         <div class="col shrink-0 mt-4">
           <text class="t-headline c-on-surface">规则</text>
           <text class="t-body c-on-surface-variant w-content mt-1">· 2 秒内连续命中累积连击</text>
-          <text class="t-body c-on-surface-variant w-content mt-1">· 漏打不扣分，只断连击</text>
-          <text class="t-body c-on-surface-variant w-content mt-1">· 点空地不扣分</text>
           <text class="t-body c-on-surface-variant w-content mt-1">· 金色地鼠 3 倍分</text>
+          <text class="t-body c-on-surface-variant w-content mt-1">· 炸弹鼠别打：扣 12 分并断连击</text>
+          <text class="t-body c-on-surface-variant w-content mt-1">· 时钟鼠：+2 秒、+5 分</text>
+          <text class="t-body c-on-surface-variant w-content mt-1">· 最后 10 秒狂暴，最多 3 只同屏</text>
         </div>
 
         <div class="col shrink-0 mt-4">

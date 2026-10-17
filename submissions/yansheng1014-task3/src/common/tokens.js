@@ -162,7 +162,9 @@ export const ICONS = {
 export const ART = {
   "hero": "/common/art/hero.png",
   "mole": "/common/art/mole.png",
-  "moleGold": "/common/art/mole-gold.png"
+  "moleGold": "/common/art/mole-gold.png",
+  "bomb": "/common/art/bomb.png",
+  "clock": "/common/art/clock.png"
 }
 
 // 内联样式角色：动态状态（命中/金色/暂停）用这些角色，静态样式优先用 class。
