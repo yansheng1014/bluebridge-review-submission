@@ -15,7 +15,7 @@
 | 模拟器脚本 | `tools/emulator-run.cjs`（创建 VVD + 启动 + 安装 rpk）、`tools/emulator-shot.cjs`（gRPC 抓真实截图） |
 | 交互面板 | `tools/emulator-panel.cjs` + `tools/panel-ui.html`（移动端自适应；画布手势录制 + 服务端 60Hz gRPC 回放，点击/拖拽/横滑可用；实时画面 + 唤醒/重启/重装/截图/全屏/状态/动作日志，`/api/logs` 可查）；本机经 nginx 暴露为 `/emu-panel/`，详见 `docs/emulator-verification.md` 第十节 |
 | 预览渲染脚本 | `tools/render-preview.cjs` + `tools/screenshot.cjs`（同源 HTML 渲染，快速迭代用） |
-| 调研笔记 | `docs/research/`（官方文档要点、336×480 UI 规范、决策记录）；**专业文档索引**见 `docs/research/vela-official-docs.md`（官方在线/离线全量副本/社区入口 + 已核实规范） |
+| 调研笔记 | `docs/research/`（官方文档要点、336×480 UI 规范、决策记录）；**专业文档索引** `vela-official-docs.md`；**手环 UI 设计原则（少即是多）** `wearable-ui-design.md`（官方设备矩阵/信息预算/字号地板/审计清单） |
 
 ## 二、构建与运行
 

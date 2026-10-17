@@ -159,6 +159,9 @@ function pollStatus() {
     dConn.textContent = d.active ? '画面更新中' : '已连接（静止）';
     st.textContent = '已连接 · 帧 #' + d.seq + ' · ' + (prevFrame ? prevFrame + ' fps' : '等待更新') + ' · ' + (d.liveW ? d.liveW + '×' + d.liveH : '-');
     dEmu.textContent = d.emulator + ' · v' + (d.panelVersion || '-') + ' · ' + (d.liveW ? d.liveW + '×' + d.liveH : '-') + ' 直播 · rpc ' + (d.rpcMs || 0) + 'ms · ' + (d.frameBytes ? (d.frameBytes / 1024).toFixed(0) + 'KB/帧' : '-') + ' · ' + (d.injection || '-');
+    if (typeof d.pushFps === 'number') {
+      dFps.textContent = (d.active ? d.pushFps : 0) + ' / 采样 ' + (d.grabFps || 0);
+    }
   }).catch(function () {});
 }
 pollStatus(); setInterval(pollStatus, 2000);

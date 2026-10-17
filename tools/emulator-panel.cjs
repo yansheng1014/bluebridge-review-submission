@@ -70,32 +70,51 @@ function logAction(kind, detail) {
 const clampX = (v) => Math.max(0, Math.min(335, Math.round(Number(v) || 0)));
 const clampY = (v) => Math.max(0, Math.min(479, Math.round(Number(v) || 0)));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-async function replayGesture(points) {
+/* 手势回放：路径重采样 + 按 durationMs 缩放节拍。
+   - 客户端一次 POST 整条路径（不逐帧 HTTP）；
+   - 服务端用 sendMouse(down→move...→up) 回放；steps 上限防止抖动点把时长撑爆；
+   - durationMs 来自手机端真实手势耗时，钳制在 [60, 2000]ms，回放速度贴近手指。 */
+async function replayGesture(points, durationMs) {
   const src = Array.isArray(points) ? points : [];
-  const pts = src.map((p) => ({ x: clampX(p && p.x), y: clampY(p && p.y) })).filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y));
-  if (!pts.length) throw new Error('empty gesture');
-  logAction('gesture', { points: pts.length, start: pts[0], end: pts[pts.length - 1] });
+  const all = src.map((p) => ({ x: clampX(p && p.x), y: clampY(p && p.y) })).filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y));
+  if (!all.length) throw new Error('empty gesture');
+  // 路径抽稀：相邻同点去掉；总点数上限 96，避免超长路径放大回放时长。
+  const pts = [all[0]];
+  for (let i = 1; i < all.length; i++) {
+    const p = all[i];
+    const q = pts[pts.length - 1];
+    if (p.x !== q.x || p.y !== q.y) pts.push(p);
+    if (pts.length >= 96) break;
+  }
+  const totalMs = Math.max(60, Math.min(2000, Number(durationMs) || (pts.length - 1) * 16 || 300));
+  logAction('gesture', { points: pts.length, totalMs, start: pts[0], end: pts[pts.length - 1] });
+  markActive(totalMs + 700); // 手势回放期间保持 30fps 采样，交互画面才跟手
   await mouse(pts[0].x, pts[0].y, 1);
   if (pts.length === 1) {
-    await sleep(90);
+    await sleep(Math.max(60, Math.min(240, totalMs)));
     await mouse(pts[0].x, pts[0].y, 0);
-    return { points: 1, type: 'tap' };
+    return { points: 1, type: 'tap', totalMs };
   }
-  let prev = pts[0];
-  await sleep(14);
+  // 先统计插值总步数，再把总时长均摊到每一步（60Hz 附近，最短 8ms、最长 40ms）。
+  const plan = [];
+  let totalSteps = 0;
   for (let i = 1; i < pts.length; i++) {
     const p = pts[i];
+    const prev = pts[i - 1];
     const dist = Math.hypot(p.x - prev.x, p.y - prev.y);
     const steps = Math.max(1, Math.min(4, Math.round(dist / 6)));
+    plan.push({ prev, p, steps });
+    totalSteps += steps;
+  }
+  const delay = Math.max(8, Math.min(40, Math.round(totalMs / Math.max(1, totalSteps))));
+  for (const { prev, p, steps } of plan) {
     for (let s = 1; s <= steps; s++) {
       await mouse(prev.x + ((p.x - prev.x) * s) / steps, prev.y + ((p.y - prev.y) * s) / steps, 1);
-      await sleep(12);
+      await sleep(delay);
     }
-    prev = p;
   }
-  await sleep(14);
   await mouse(pts[pts.length - 1].x, pts[pts.length - 1].y, 0);
-  return { points: pts.length, type: 'swipe' };
+  return { points: pts.length, steps: totalSteps, delayMs: delay, totalMs, type: 'swipe' };
 }
 
 function adb(args, timeoutMs) {
@@ -134,26 +153,48 @@ const LIVE_W = Math.round(DEV_W * LIVE_SCALE);
 const LIVE_H = Math.round(DEV_H * LIVE_SCALE);
 const LIVE_FMT = { format: 'PNG', width: LIVE_W, height: LIVE_H, display: 0 };
 const NATIVE_FMT = { format: 'PNG', width: 0, height: 0, display: 0 };
-const stats = { frames: 0, pushes: 0, rpcMs: 0, bytes: 0, started: Date.now() };
+const stats = { frames: 0, pushes: 0, grabs: 0, rpcMs: 0, bytes: 0, started: Date.now(), grabTimes: [], pushTimes: [] };
+const RATE_WINDOW_MS = 1000;
+function ratePerSec(times) {
+  const cut = Date.now() - RATE_WINDOW_MS;
+  let i = 0;
+  while (i < times.length && times[i] < cut) i++;
+  if (i > 0) times.splice(0, i);
+  return Math.round((times.length * 1000) / RATE_WINDOW_MS * 10) / 10;
+}
 
 async function grab(fmt) {
   return Buffer.from((await call(client.getScreenshot, fmt)).image || []);
 }
 
-/* 自适应节奏：活跃时 ~30fps（33ms 一帧），画面静止 600ms 后降到 ~8fps 省 CPU。 */
+/* 自适应节奏：活跃时 ~30fps（33ms 一帧），画面静止 600ms 后降到 ~8fps 省 CPU。
+   stats.grabTimes / pushTimes 保留最近窗口的时间戳，/api/status 输出实测
+   grabFps（抓帧率=链路能力）与 pushFps（变化帧推送率=画面实际更新率）。
+   markActive() 在收到手势/动作时立刻拉高采样率（否则空闲时刚接手势的头
+   150ms 还在 120ms 档，交互 fps 会被拉低）。 */
+let lastActiveAt = Date.now();
+let activeUntil = 0;
+function markActive(ms) {
+  lastActiveAt = Date.now();
+  activeUntil = Math.max(activeUntil, Date.now() + (ms || 0));
+  return lastActiveAt;
+}
 async function frameLoop() {
   const t0 = Date.now();
   try {
     const buf = await grab(LIVE_FMT);
     if (buf.length >= 100) {
+      stats.grabs += 1;
+      stats.grabTimes.push(Date.now());
       const hash = crypto.createHash('md5').update(buf).digest('hex');
       if (hash !== lastHash) {
         lastHash = hash;
         lastPng = buf;
         seq += 1;
-        lastActiveAt = t0;
+        markActive(0);
         stats.frames += 1;
         stats.pushes += 1;
+        stats.pushTimes.push(Date.now());
         stats.bytes = buf.length;
         const ssePayload = 'data: ' + JSON.stringify({ seq, img: buf.toString('base64'), w: LIVE_W, h: LIVE_H, bytes: buf.length }) + NL2;
         for (const r of sseClients) r.write(ssePayload);
@@ -165,11 +206,11 @@ async function frameLoop() {
   }
   const spent = Date.now() - t0;
   stats.rpcMs = Math.round(stats.rpcMs * 0.8 + spent * 0.2);
-  const idle = Date.now() - lastActiveAt > 600;
+  const now = Date.now();
+  const idle = now - lastActiveAt > 600 && now > activeUntil;
   const target = idle ? 120 : 33;
   setTimeout(frameLoop, Math.max(4, target - spent));
 }
-let lastActiveAt = Date.now();
 frameLoop();
 
 const PAGE = fs.readFileSync(path.join(__dirname, 'panel-ui.html'), 'utf8');
@@ -204,9 +245,12 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(200, { 'content-type': 'application/json' });
     res.end(JSON.stringify({
       emulator: SN, grpcPort: cfg['grpc.port'], booted, seq, lastError, up: true,
-      panelVersion: '1.2.0', injection: 'pointer-gesture-replay', touchSupported: false,
+      panelVersion: '1.3.0', injection: 'pointer-gesture-replay', touchSupported: false,
       liveScale: LIVE_SCALE, liveW: LIVE_W, liveH: LIVE_H, rpcMs: stats.rpcMs, frameBytes: stats.bytes,
       active: Date.now() - lastActiveAt < 600,
+      grabs: stats.grabs, pushes: stats.pushes,
+      grabFps: ratePerSec(stats.grabTimes), pushFps: ratePerSec(stats.pushTimes), rateWindowMs: RATE_WINDOW_MS,
+      pushAges: stats.pushTimes.slice(-60).map((t) => Date.now() - t),
       actionLog: ACTION_LOG, hint: '拖动 = 录路径 + 服务端回放 sendMouse（Vela 5.0 镜像 sendTouch 无响应）'
     }));
     return;
@@ -241,6 +285,7 @@ const server = http.createServer(async (req, res) => {
       try {
         const b = JSON.parse(body || '{}');
         logAction('mouse', { x: b.x, y: b.y, buttons: b.buttons ? 1 : 0 });
+        markActive(500);
         await mouse(Number(b.x) || 0, Number(b.y) || 0, b.buttons ? 1 : 0);
         res.writeHead(200, { 'content-type': 'application/json' });
         res.end('{"ok":true}');
@@ -253,6 +298,7 @@ const server = http.createServer(async (req, res) => {
       try {
         const b = JSON.parse(body || '{}');
         let out = '';
+        markActive(800);
         if (b.name === 'wake') {
           await call(client.sendMouse, { x: 168, y: 240, buttons: 1, display: 0 });
           await new Promise((r) => setTimeout(r, 120));
@@ -278,7 +324,7 @@ const server = http.createServer(async (req, res) => {
     readBody(req, async (body) => {
       try {
         const b = JSON.parse(body || '{}');
-        const info = await replayGesture(b.points);
+        const info = await replayGesture(b.points, b.durationMs);
         res.writeHead(200, { 'content-type': 'application/json' });
         res.end(JSON.stringify({ ok: true, info }));
       } catch (e) { res.writeHead(500); res.end(String(e.message || e)); }
