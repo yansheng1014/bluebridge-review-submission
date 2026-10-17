@@ -1,0 +1,565 @@
+<template>
+  <div class="screen">
+    <!-- 336×480 游戏页：HUD 120 + 棋盘 296；上下各留 24/16，一屏内容 456（底部余量 24）。 -->
+    <div class="content col">
+      <!-- HUD：左右对称（时间 ↔ 得分），暂停按钮居中；高度压到 92，把空间让给棋盘。 -->
+      <div class="row w-content h-hud-height hud-row mt-3">
+        <div class="col grow hud-left">
+          <text class="t-caption c-on-surface-variant">时间</text>
+          <text class="{{timeCls}}">{{timeSec}}</text>
+        </div>
+        <div class="btn-icon bg-primary b-ink pause-btn {{pauseCls}}" onclick="onPause" ontouchstart="onPauseDown" ontouchend="onPauseUp">
+          <image class="wh-icon-sm img-contain" src="{{pauseIcon}}" />
+        </div>
+        <div class="col grow hud-right">
+          <text class="{{labelCls}}">{{labelText}}</text>
+          <text class="{{scoreCls}}">{{score}}</text>
+        </div>
+      </div>
+
+      <!-- 棋盘：9 个静态格，坐标由 layout.js 统一计算（position:absolute，像素级对齐）。 -->
+      <div class="board w-grid-size h-grid-size mt-4">
+        <div class="cell bg-tile b-ink r-lg center {{c0.cls}}" style="{{c0.style}}" onclick="onCell(0)">
+          <image class="wh-mole img-contain anim-mole-in" src="{{c0.src}}" show="{{c0.on}}" />
+        </div>
+        <div class="cell bg-tile b-ink r-lg center {{c1.cls}}" style="{{c1.style}}" onclick="onCell(1)">
+          <image class="wh-mole img-contain anim-mole-in" src="{{c1.src}}" show="{{c1.on}}" />
+        </div>
+        <div class="cell bg-tile b-ink r-lg center {{c2.cls}}" style="{{c2.style}}" onclick="onCell(2)">
+          <image class="wh-mole img-contain anim-mole-in" src="{{c2.src}}" show="{{c2.on}}" />
+        </div>
+        <div class="cell bg-tile b-ink r-lg center {{c3.cls}}" style="{{c3.style}}" onclick="onCell(3)">
+          <image class="wh-mole img-contain anim-mole-in" src="{{c3.src}}" show="{{c3.on}}" />
+        </div>
+        <div class="cell bg-tile b-ink r-lg center {{c4.cls}}" style="{{c4.style}}" onclick="onCell(4)">
+          <image class="wh-mole img-contain anim-mole-in" src="{{c4.src}}" show="{{c4.on}}" />
+        </div>
+        <div class="cell bg-tile b-ink r-lg center {{c5.cls}}" style="{{c5.style}}" onclick="onCell(5)">
+          <image class="wh-mole img-contain anim-mole-in" src="{{c5.src}}" show="{{c5.on}}" />
+        </div>
+        <div class="cell bg-tile b-ink r-lg center {{c6.cls}}" style="{{c6.style}}" onclick="onCell(6)">
+          <image class="wh-mole img-contain anim-mole-in" src="{{c6.src}}" show="{{c6.on}}" />
+        </div>
+        <div class="cell bg-tile b-ink r-lg center {{c7.cls}}" style="{{c7.style}}" onclick="onCell(7)">
+          <image class="wh-mole img-contain anim-mole-in" src="{{c7.src}}" show="{{c7.on}}" />
+        </div>
+        <div class="cell bg-tile b-ink r-lg center {{c8.cls}}" style="{{c8.style}}" onclick="onCell(8)">
+          <image class="wh-mole img-contain anim-mole-in" src="{{c8.src}}" show="{{c8.on}}" />
+        </div>
+      </div>
+    </div>
+
+    <!-- 暂停遮罩：绝对定位覆盖全屏，仅在暂停时插入节点。 -->
+    <div class="mask bg-overlay w-screen-width h-screen-height col center" if="{{paused}}">
+      <text class="t-title c-on-surface">已暂停</text>
+      <div class="btn bg-primary w-button-width h-button-primary-height mt-4 {{resumeCls}}" onclick="onResume" ontouchstart="onResumeDown" ontouchend="onResumeUp">
+        <text class="t-button c-on-primary">继续</text>
+      </div>
+      <div class="btn btn-ghost b-secondary quit-btn w-button-width h-button-height mt-3 {{quitCls}}" onclick="onQuit" ontouchstart="onQuitDown" ontouchend="onQuitUp">
+        <text class="t-button c-on-surface">退出本局</text>
+      </div>
+    </div>
+  </div>
+</template>
+
+<style>
+@import "../../common/tokens.css";
+@import "../../common/ui.css";
+
+/* 仅布局：颜色 / 字号 / 尺寸全部来自 tokens.css 的 class 与 ui.css。
+ * 纵向预算：24(顶) + 120(HUD) + 16 + 296(棋盘) = 456，底部余量 24。 */
+.content {
+  align-items: center;
+}
+
+.hud-row {
+  align-items: center;
+}
+
+/* 左右两列各占一半，标签在上、数字在下；左边左对齐、右边右对齐，形成对称。 */
+.hud-left {
+  align-items: flex-start;
+}
+
+.hud-right {
+  align-items: flex-end;
+}
+
+/* 中间暂停按钮 56×56（可点下限），与两侧数字视觉居中对齐。 */
+.pause-btn {
+  width: 56px;
+  height: 56px;
+}
+.pause-btn {
+  align-self: center;
+}
+
+/* 暂停遮罩铺满整屏，宽高由 .w-screen-width / .h-screen-height 提供。 */
+.mask {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+
+
+/* 遮罩里的次级按钮：奶白 2px 描边，在深色遮罩上清晰可辨。 */
+.quit-btn {
+  border-width: 2px;
+}
+
+/* 棋盘：相对定位容器，9 个格子绝对定位（坐标由 layout.js 算）。 */
+.board {
+  position: relative;
+}
+
+/* 格子：卡通厚描边（颜色来自 .bg-tile / .b-ink 令牌类）。
+   命中反馈只改内联背景色，靠 transition 平滑过渡 —— 不改尺寸、不改透明度，
+   这样任何时刻 9 个格子的边界都完全一致。 */
+.cell {
+  border-width: 3px;
+  transition-property: background-color;
+  transition-duration: 120ms;
+  transition-timing-function: ease-out;
+}
+
+/* keyframes 必须在页面 <style> 内声明：Vela 不解析 @import 进来的 @keyframes
+   （运行时日志 Unknown style - keyframes）；动画时长/缓动由 tokens.css 的 .anim-* 提供。 */
+@keyframes mole-in {
+  0% { transform: scale(0.55); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+
+/* 最后 5 秒：时间数字只脉冲一次（不循环，避免持续动画抢注意力）。 */
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+  100% { transform: scale(1); }
+}
+</style>
+
+<script>
+import router from "@system.router"
+import vibrator from "@system.vibrator"
+import brightness from "@system.brightness"
+import { createGame } from "../../common/game.js"
+import { ART, COLORS, ICONS } from "../../common/tokens.js"
+import { cellStyles } from "../../common/layout.js"
+
+const TICK_MS = 100 // 倒计时 / 出鼠刷新节拍
+const FLASH_MS = 160 // 命中高亮 class 停留时长
+const FALLBACK_DURATION_S = 30
+
+// 9 个格子的几何只算一次：位置/尺寸来自 layout.js，style 里还带命中背景色。
+const GRID = cellStyles()
+
+function makeCell(index) {
+  return { on: false, src: ART.mole, cls: "", style: GRID.styles[index].base }
+}
+
+export default {
+  // 路由参数会统一转 String；duration 由主页 / 结算页传入。
+  protected: {
+    duration: "30",
+    durationMs: 30000,
+    timeSec: FALLBACK_DURATION_S,
+    timeCls: "t-metric c-secondary",
+    score: 0,
+    scoreCls: "t-metric c-primary",
+    combo: 0,
+    labelText: "得分",
+    labelCls: "t-caption c-on-surface-variant",
+    paused: false,
+    over: false,
+    pauseIcon: ICONS.pauseDark || ICONS.pause,
+    pauseCls: "",
+    resumeCls: "",
+    quitCls: "",
+    c0: makeCell(0),
+    c1: makeCell(1),
+    c2: makeCell(2),
+    c3: makeCell(3),
+    c4: makeCell(4),
+    c5: makeCell(5),
+    c6: makeCell(6),
+    c7: makeCell(7),
+    c8: makeCell(8)
+  },
+
+  onInit() {
+    const seconds = parseInt(this.duration, 10)
+    const safeSeconds = seconds > 0 ? seconds : FALLBACK_DURATION_S
+    this.durationMs = safeSeconds * 1000
+    this.engine = createGame({ durationMs: this.durationMs })
+    this.timerId = 0
+    this.flashTimers = [0, 0, 0, 0, 0, 0, 0, 0, 0]
+    this.urgencyFired = false
+    this.cellState = []
+    this.cellBg = []
+    for (let i = 0; i < 9; i++) {
+      this.cellState.push({ on: false, golden: false })
+      this.cellBg.push("")
+    }
+    this.syncFromEngine()
+  },
+
+  onShow() {
+    if (this.over || !this.engine) {
+      this.setKeepScreenOn(false)
+      return
+    }
+    if (this.engine.phase === "idle") {
+      this.engine.start(Date.now())
+      this.syncFromEngine()
+    }
+    if (this.engine.phase === "over") {
+      this.finish()
+      return
+    }
+    // 只有真正在玩时才常亮；暂停/遮罩态不常亮，省电。
+    this.setKeepScreenOn(this.engine.phase === "playing")
+    // 已暂停（例如从别的页面回来）不自动继续，交给遮罩上的「继续」。
+    if (this.engine.phase === "playing") {
+      this.startTimer()
+    }
+  },
+
+  onHide() {
+    this.release()
+    if (this.over || !this.engine) {
+      return
+    }
+    if (this.engine.phase === "playing") {
+      this.engine.pause(Date.now())
+      this.syncFromEngine()
+      this.paused = true
+    }
+  },
+
+  onDestroy() {
+    this.release()
+    if (this.engine) {
+      this.engine.stop()
+    }
+    this.engine = null
+  },
+
+  onBackPress() {
+    if (this.over) {
+      return false
+    }
+    if (this.paused) {
+      this.quitToHome()
+      return true
+    }
+    if (this.engine && this.engine.phase === "playing") {
+      this.pauseGame()
+      return true
+    }
+    return false
+  },
+
+  /* ---------------------------- 计时 ---------------------------- */
+
+  startTimer() {
+    this.stopTimer()
+    if (this.over) {
+      return
+    }
+    this.timerId = setInterval(() => {
+      this.tick()
+    }, TICK_MS)
+  },
+
+  stopTimer() {
+    if (this.timerId) {
+      clearInterval(this.timerId)
+      this.timerId = 0
+    }
+  },
+
+  tick() {
+    if (this.over || !this.engine) {
+      return
+    }
+    const result = this.engine.update(Date.now())
+    this.syncFromEngine()
+    if (result && result.ended) {
+      this.finish()
+    }
+  },
+
+  /* ---------------------------- 交互 ---------------------------- */
+
+  onCell(index) {
+    if (this.over || this.paused || !this.engine) {
+      return
+    }
+    if (this.engine.phase !== "playing") {
+      return
+    }
+    const result = this.engine.hit(index, Date.now())
+    if (!result || !result.ok) {
+      // 空点：不振动、不扣分（README 规则）。
+      this.syncFromEngine()
+      return
+    }
+    // 先振动再同步视图：把反馈延迟压在 1 帧以内（真机上振动本身有几十毫秒延迟）。
+    this.vibrateShort()
+    this.syncFromEngine()
+    this.flashCell(index, result.golden)
+    this.popScore()
+  },
+
+  onPause() {
+    this.pauseCls = ""
+    this.pauseGame()
+  },
+
+  onResume() {
+    this.resumeCls = ""
+    if (this.over || !this.paused || !this.engine) {
+      return
+    }
+    if (this.engine.phase === "paused") {
+      this.engine.resume(Date.now())
+    }
+    this.paused = false
+    this.setKeepScreenOn(true)
+    this.startTimer()
+  },
+
+  onQuit() {
+    this.quitCls = ""
+    this.quitToHome()
+  },
+
+  onPauseDown() {
+    this.pauseCls = "press"
+  },
+
+  onPauseUp() {
+    this.pauseCls = ""
+  },
+
+  onResumeDown() {
+    this.resumeCls = "press"
+  },
+
+  onResumeUp() {
+    this.resumeCls = ""
+  },
+
+  onQuitDown() {
+    this.quitCls = "press"
+  },
+
+  onQuitUp() {
+    this.quitCls = ""
+  },
+
+  pauseGame() {
+    if (this.over || this.paused || !this.engine) {
+      return
+    }
+    if (this.engine.phase === "playing") {
+      this.engine.pause(Date.now())
+    }
+    this.stopTimer()
+    this.syncFromEngine()
+    this.setKeepScreenOn(false)
+    this.paused = true
+  },
+
+  quitToHome() {
+    this.release()
+    if (this.engine) {
+      this.engine.stop()
+    }
+    this.over = true
+    this.paused = false
+    router.back()
+  },
+
+  /* ---------------------------- 结束 / 清理 ---------------------------- */
+
+  finish() {
+    if (this.over || !this.engine) {
+      return
+    }
+    this.over = true
+    this.release()
+    const snapshot = this.engine.snapshot()
+    const durationSeconds = Math.round(this.durationMs / 1000)
+    this.engine.stop()
+    router.replace({
+      uri: "/pages/result",
+      params: {
+        score: snapshot.score || 0,
+        duration: durationSeconds
+      }
+    })
+  },
+
+  release() {
+    this.stopTimer()
+    this.clearFlashTimers()
+    this.setKeepScreenOn(false)
+  },
+
+  clearFlashTimers() {
+    for (let i = 0; i < this.flashTimers.length; i++) {
+      if (this.flashTimers[i]) {
+        clearTimeout(this.flashTimers[i])
+      }
+      this.flashTimers[i] = 0
+    }
+    if (this.scorePopTimer) {
+      clearTimeout(this.scorePopTimer)
+      this.scorePopTimer = 0
+    }
+  },
+
+  // 命中时分数弹一下（260ms，单次动画）：给“打中了”一个即时、可感知的正反馈。
+  popScore() {
+    this.scoreCls = "t-metric c-primary anim-score-pop"
+    if (this.scorePopTimer) {
+      clearTimeout(this.scorePopTimer)
+    }
+    this.scorePopTimer = setTimeout(() => {
+      this.scoreCls = "t-metric c-primary"
+    }, 280)
+  },
+
+  setKeepScreenOn(on) {
+    try {
+      brightness.setKeepScreenOn({ keepScreenOn: on })
+    } catch (error) {
+      // 设备不支持常亮时静默降级。
+    }
+  },
+
+  vibrateShort() {
+    try {
+      vibrator.vibrate({ mode: "short" })
+    } catch (error) {
+      // 设备不支持振动时静默降级。
+    }
+  },
+
+  /* ---------------------------- 数据同步 ---------------------------- */
+
+  syncFromEngine() {
+    if (!this.engine) {
+      return
+    }
+    const snapshot = this.engine.snapshot()
+    // 只在值变化时写响应式字段：100ms 节拍下避免无意义的整块重绘。
+    const nextTimeSec = Math.max(0, Math.ceil(snapshot.timeLeftMs / 1000))
+    if (nextTimeSec !== this.lastTimeSec) {
+      this.lastTimeSec = nextTimeSec
+      this.timeSec = nextTimeSec
+      const nextTimeCls = nextTimeSec <= 5 ? "t-metric c-danger" : "t-metric c-secondary"
+      if (nextTimeCls !== this.lastTimeCls) {
+        this.lastTimeCls = nextTimeCls
+        this.timeCls = nextTimeCls
+        if (nextTimeSec <= 5 && !this.urgencyFired) {
+          this.urgencyFired = true
+          this.timeCls = "t-metric c-danger anim-pulse"
+          setTimeout(() => {
+            this.timeCls = "t-metric c-danger"
+          }, 260)
+        }
+      }
+    }
+    if (snapshot.score !== this.lastScore) {
+      this.lastScore = snapshot.score
+      this.score = snapshot.score
+    }
+    if (snapshot.combo !== this.lastCombo) {
+      this.lastCombo = snapshot.combo
+      this.combo = snapshot.combo
+      const comboOn = snapshot.combo >= 2
+      this.labelText = comboOn ? "×" + snapshot.combo + " 连击" : "得分"
+      this.labelCls = comboOn ? "t-caption c-secondary" : "t-caption c-on-surface-variant"
+    }
+    this.syncCells(snapshot.cells)
+  },
+
+  syncCells(cells) {
+    for (let i = 0; i < 9; i++) {
+      const source = cells && cells[i] ? cells[i] : null
+      const on = !!(source && source.mole)
+      const golden = !!(source && source.golden)
+      const previous = this.cellState[i]
+      if (previous && previous.on === on && previous.golden === golden) {
+        continue
+      }
+      this.cellState[i] = { on: on, golden: golden }
+      const current = this.getCell(i)
+      this.setCell(i, on, golden, current ? current.cls : "", this.cellBg[i] || "")
+    }
+  },
+
+  // 9 个格子是静态节点，这里用显式分支回写，避免动态 key 赋值不触发视图更新。
+  getCell(index) {
+    switch (index) {
+      case 0: return this.c0
+      case 1: return this.c1
+      case 2: return this.c2
+      case 3: return this.c3
+      case 4: return this.c4
+      case 5: return this.c5
+      case 6: return this.c6
+      case 7: return this.c7
+      case 8: return this.c8
+      default:
+        return null
+    }
+  },
+
+  setCell(index, on, golden, cls, bg) {
+    const base = GRID.styles[index].base
+    const style = bg ? base + "background-color:" + bg + ";" : base
+    const value = { on: on, src: golden ? ART.moleGold : ART.mole, cls: cls, style: style }
+    switch (index) {
+      case 0: this.c0 = value; break
+      case 1: this.c1 = value; break
+      case 2: this.c2 = value; break
+      case 3: this.c3 = value; break
+      case 4: this.c4 = value; break
+      case 5: this.c5 = value; break
+      case 6: this.c6 = value; break
+      case 7: this.c7 = value; break
+      case 8: this.c8 = value; break
+      default:
+        break
+    }
+  },
+
+  flashCell(index, golden) {
+    const state = this.cellState[index] || { on: false, golden: false }
+    this.cellBg = this.cellBg || []
+    this.cellBg[index] = golden ? COLORS.gold : COLORS.primaryContainer
+    this.setCell(index, state.on, state.golden, "", this.cellBg[index])
+    if (this.flashTimers[index]) {
+      clearTimeout(this.flashTimers[index])
+    }
+    this.flashTimers[index] = setTimeout(() => {
+      this.clearFlash(index)
+    }, FLASH_MS)
+  },
+
+  clearFlash(index) {
+    this.flashTimers[index] = 0
+    const state = this.cellState[index]
+    if (!state) {
+      return
+    }
+    this.cellBg = this.cellBg || []
+    this.cellBg[index] = ""
+    this.setCell(index, state.on, state.golden, "", "")
+  }
+}
+</script>

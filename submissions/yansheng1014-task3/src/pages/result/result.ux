@@ -1,0 +1,122 @@
+<template>
+  <div class="screen">
+    <!-- 结算页：本局得分 + 权威最高分（新纪录标签）+ 命中/连击 + 再玩/返回（296 宽居中，顶 16）。 -->
+    <div class="row w-screen-width h-screen-height center">
+      <div class="col w-content center">
+        <text class="t-caption c-on-surface-variant w-content tc">本局得分</text>
+        <text class="t-display c-on-surface w-content tc mt-1">{{scoreText}}</text>
+
+        <div class="row center mt-2">
+          <text class="t-label c-primary">{{bestLine}}</text>
+          <div if="{{isRecord}}" class="row center bg-secondary-container r-pill ml-3 pt-1 pb-1 pl-3 pr-3">
+            <text class="t-tag c-on-secondary-container">新纪录</text>
+          </div>
+        </div>
+
+        <div class="btn bg-primary w-button-width h-button-primary-height mt-4 {{replayClass}}"
+             ontouchstart="replayIn" ontouchend="replayOut" onclick="replay">
+          <text class="t-button c-on-primary">再玩一局</text>
+        </div>
+
+        <div class="btn bg-surface-raised b-outline w-button-width h-button-height mt-3 {{homeClass}}"
+             ontouchstart="homeIn" ontouchend="homeOut" onclick="goHome">
+          <text class="t-button c-on-surface">返回主页</text>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<style>
+@import "../../common/tokens.css";
+@import "../../common/ui.css";
+/* 仅本页布局：占满内容宽的文字块水平居中（字号/颜色全部来自 tokens.css）。 */
+.tc {
+  text-align: center;
+}
+
+/* 次级按钮：奶白 2px 描边（深色文字与蓝底之间需要可见边界）。 */
+.home-btn {
+  border-width: 2px;
+}
+
+</style>
+
+<script>
+import router from "@system.router"
+import { submitScore } from "../../common/store.js"
+
+const DEFAULT_DURATION = 30
+
+// 路由参数统一转成 String，这里 parseInt 兜底：NaN/负数 → fallback。
+function toInt (value, fallback) {
+  const n = parseInt(value, 10)
+  return isNaN(n) || n < 0 ? fallback : n
+}
+
+export default {
+  protected: {
+    // 路由参数（由 game 页 router.replace 传入，全部为 String）
+    score: "0",
+    duration: "30",
+    // 视图状态
+    scoreText: "0",
+    bestLine: "最高分 —",
+    isRecord: false,
+    replayClass: "btn bg-primary w-button-width h-button-primary-height mt-4",
+    homeClass: "btn btn-ghost b-secondary home-btn w-button-width h-button-height mt-3",
+    playDuration: "30"
+  },
+
+  onInit () {
+    const score = toInt(this.score, 0)
+    const durationSec = toInt(this.duration, DEFAULT_DURATION)
+    this.scoreText = String(score)
+    this.playDuration = String(durationSec > 0 ? durationSec : DEFAULT_DURATION)
+
+    // 权威最高分/新纪录由 store 决定（写入更高分才更新）。
+    submitScore(score, (res) => {
+      const valid = res && typeof res === "object" && typeof res.best !== "undefined"
+      const best = valid ? toInt(res.best, score) : score
+      this.bestLine = "最高分 " + best
+      this.isRecord = valid ? !!res.isRecord : false
+    })
+  },
+
+  onHide () {
+    this.replayClass = "btn bg-primary w-button-width h-button-primary-height mt-4"
+    this.homeClass = "btn btn-ghost b-secondary home-btn w-button-width h-button-height mt-3"
+  },
+
+  replayIn () {
+    this.replayClass = "btn bg-primary w-button-width h-button-primary-height mt-4 press"
+  },
+
+  replayOut () {
+    this.replayClass = "btn bg-primary w-button-width h-button-primary-height mt-4"
+  },
+
+  homeIn () {
+    this.homeClass = "btn btn-ghost b-secondary home-btn w-button-width h-button-height mt-3 press"
+  },
+
+  homeOut () {
+    this.homeClass = "btn btn-ghost b-secondary home-btn w-button-width h-button-height mt-3"
+  },
+
+  replay () {
+    this.replayClass = "btn bg-primary w-button-width h-button-primary-height mt-4"
+    // 不用 back 回游戏页：直接 replace，栈保持 home → game。
+    router.replace({
+      uri: "/pages/game",
+      params: { duration: this.playDuration }
+    })
+  },
+
+  goHome () {
+    this.homeClass = "btn btn-ghost b-secondary home-btn w-button-width h-button-height mt-3"
+    // 栈为 home → result，back 即回主页（主页 onShow 会重新读最高分）。
+    router.back()
+  }
+}
+</script>

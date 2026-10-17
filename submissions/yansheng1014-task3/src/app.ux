@@ -1,0 +1,8 @@
+<script>
+// 应用入口：只保留生命周期钩子。
+// 最高分缓存的读写统一走 src/common/store.js（单一数据源），这里不重复实现。
+export default {
+  onCreate() {},
+  onDestroy() {}
+}
+</script>

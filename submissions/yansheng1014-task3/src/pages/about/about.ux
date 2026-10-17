@@ -1,0 +1,71 @@
+<template>
+  <div class="screen">
+    <!-- 关于页：整页 scroll，说明内容可纵向滚动；顶行返回热区 56×56 + 标题。 -->
+    <scroll class="screen" scroll-y="true">
+      <div class="about-inner col shrink-0 pt-safe-top pb-safe-bottom pl-safe-x pr-safe-x">
+        <div class="row center shrink-0">
+          <div class="wh-touch center {{backClass}}"
+               ontouchstart="backIn" ontouchend="backOut" onclick="goBack">
+            <image class="wh-icon-md img-contain" src="{{iconBack}}"></image>
+          </div>
+          <text class="t-title c-on-surface ml-2">玩法说明</text>
+        </div>
+
+        <div class="col shrink-0 mt-4">
+          <text class="t-headline c-on-surface">怎么玩</text>
+          <text class="t-body c-on-surface-variant w-content mt-2">30 秒内点击冒头的地鼠，连击越高分越高。</text>
+        </div>
+
+        <div class="col shrink-0 mt-4">
+          <text class="t-headline c-on-surface">规则</text>
+          <text class="t-body c-on-surface-variant w-content mt-1">· 2 秒内连续命中累积连击</text>
+          <text class="t-body c-on-surface-variant w-content mt-1">· 漏打不扣分，只断连击</text>
+          <text class="t-body c-on-surface-variant w-content mt-1">· 点空地不扣分</text>
+          <text class="t-body c-on-surface-variant w-content mt-1">· 金色地鼠 3 倍分</text>
+        </div>
+
+        <div class="col shrink-0 mt-4">
+          <text class="t-caption c-on-surface-variant w-content">© 2026 蓝桥工作室</text>
+        </div>
+      </div>
+    </scroll>
+  </div>
+</template>
+
+<style>
+@import "../../common/tokens.css";
+@import "../../common/ui.css";
+/* 仅本页布局：scroll 内容宽 336（border-box），上下 24=SIZE.safeTop、左右 20=SIZE.safeX，内容区 296。 */
+.about-inner {
+  width: 336px;
+}
+</style>
+
+<script>
+import router from "@system.router"
+import { ICONS } from "../../common/tokens.js"
+
+export default {
+  data: {
+    iconBack: ICONS.arrowLeft,
+    backClass: "wh-touch center"
+  },
+
+  onHide () {
+    this.backClass = "wh-touch center"
+  },
+
+  backIn () {
+    this.backClass = "wh-touch center press"
+  },
+
+  backOut () {
+    this.backClass = "wh-touch center"
+  },
+
+  goBack () {
+    this.backClass = "wh-touch center"
+    router.back()
+  }
+}
+</script>

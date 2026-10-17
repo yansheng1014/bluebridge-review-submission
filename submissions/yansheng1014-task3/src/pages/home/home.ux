@@ -1,0 +1,96 @@
+<template>
+  <div class="screen">
+    <!-- 主页：插画 → 标题 → 副标题 → 最高分 → 开始 → 玩法说明（296 宽居中，顶 24 底 16） -->
+    <div class="row w-screen-width center">
+      <div class="col w-content center pt-safe-top pb-safe-bottom">
+        <image class="h-art-hero img-contain" style="width:240px" src="{{heroImg}}"></image>
+        <text class="t-title c-on-surface w-content tc mt-2">打地鼠</text>
+        <text class="t-caption c-secondary w-content tc mt-2">30 秒 · 连击加分</text>
+        <text class="t-label c-primary w-content tc mt-4">{{bestLine}}</text>
+
+        <div class="btn bg-primary w-button-width h-button-primary-height mt-4 {{btnClass}}"
+             ontouchstart="pressIn" ontouchend="pressOut" onclick="startGame">
+          <text class="t-button c-on-primary">开始游戏</text>
+        </div>
+
+        <div class="row center w-content h-touch mt-3 {{aboutClass}}"
+             ontouchstart="aboutIn" ontouchend="aboutOut" onclick="openAbout">
+          <image class="wh-icon-md img-contain" src="{{iconInfo}}"></image>
+          <text class="t-body c-on-surface-variant ml-3">玩法说明</text>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<style>
+@import "../../common/tokens.css";
+@import "../../common/ui.css";
+/* 仅本页布局：占满内容宽的文字块水平居中（字号/颜色全部来自 tokens.css）。 */
+.tc {
+  text-align: center;
+}
+</style>
+
+<script>
+import router from "@system.router"
+import { ICONS, ART } from "../../common/tokens.js"
+import { readBest } from "../../common/store.js"
+
+export default {
+  data: {
+    heroImg: ART.hero,
+    iconInfo: ICONS.info,
+    bestLine: "最高分 —",
+    btnClass: "btn bg-primary w-button-width h-button-primary-height mt-4",
+    aboutClass: "row center w-content h-touch mt-2"
+  },
+
+  onShow () {
+    this.btnClass = "btn bg-primary w-button-width h-button-primary-height mt-4"
+    this.aboutClass = "row center w-content h-touch mt-2"
+    this.loadBest()
+  },
+
+  onHide () {
+    this.btnClass = "btn bg-primary w-button-width h-button-primary-height mt-4"
+    this.aboutClass = "row center w-content h-touch mt-2"
+  },
+
+  loadBest () {
+    readBest((best) => {
+      const n = parseInt(best, 10)
+      this.bestLine = "最高分 " + (isNaN(n) || n < 0 ? 0 : n)
+    })
+  },
+
+  pressIn () {
+    this.btnClass = "btn bg-primary w-button-width h-button-primary-height mt-4 press"
+  },
+
+  pressOut () {
+    this.btnClass = "btn bg-primary w-button-width h-button-primary-height mt-4"
+  },
+
+  aboutIn () {
+    this.aboutClass = "row center w-content h-touch mt-2 press"
+  },
+
+  aboutOut () {
+    this.aboutClass = "row center w-content h-touch mt-2"
+  },
+
+  startGame () {
+    this.btnPress = false
+    router.push({
+      uri: "/pages/game",
+      params: { duration: "30" }
+    })
+  },
+
+  openAbout () {
+    this.aboutPress = false
+    router.push({ uri: "/pages/about" })
+  }
+}
+</script>

@@ -1,0 +1,55 @@
+{
+  "package": "com.bluebridge.review.mole",
+  "name": "打地鼠",
+  "versionName": "1.0.0",
+  "versionCode": 1,
+  "minAPILevel": 2,
+  "icon": "/common/logo.png",
+  "deviceTypeList": [
+    "watch"
+  ],
+  "features": [
+    {
+      "name": "system.router"
+    },
+    {
+      "name": "system.storage"
+    },
+    {
+      "name": "system.vibrator"
+    },
+    {
+      "name": "system.prompt"
+    },
+    {
+      "name": "system.device"
+    },
+    {
+      "name": "system.brightness"
+    }
+  ],
+  "config": {
+    "logLevel": "warn",
+    "designWidth": 336
+  },
+  "display": {
+    "backgroundColor": "#2F5FD0"
+  },
+  "router": {
+    "entry": "pages/home",
+    "pages": {
+      "pages/home": {
+        "component": "home"
+      },
+      "pages/game": {
+        "component": "game"
+      },
+      "pages/result": {
+        "component": "result"
+      },
+      "pages/about": {
+        "component": "about"
+      }
+    }
+  }
+}

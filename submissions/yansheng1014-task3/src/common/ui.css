@@ -1,0 +1,40 @@
+/* 共享交互组件样式（只组合 tokens.css 的 class，不出现裸色值/裸尺寸）。
+   Vela 无伪类，按压态由页面在 touchstart/touchend 切换 .press 类实现。 */
+
+.btn {
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+}
+
+.btn-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 999px;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-icon-sm {
+  width: 48px;
+  height: 48px;
+  border-radius: 999px;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 次级动作：透明底 + 描边，避免和主按钮抢视觉重量。 */
+.btn-ghost {
+  background-color: transparent;
+}
+
+/* 按压反馈：只缩 4%，不加 transition（Vela 不支持 transform 过渡）。 */
+.press {
+  transform: scale(0.96);
+}
+
+/* 图片统一 contain，避免 png 被拉伸。 */
+.img-contain {
+  object-fit: contain;
+}
